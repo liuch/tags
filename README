@@ -1,0 +1,89 @@
+TAGS
+----
+Sets and displays the properties of a file, that stored in a special index file in the same folder.
+The program does not modify any files except its index file!
+See showHelp() in main.c for details.
+
+EXAMPLES
+-------
+
+    $ cd my_photo
+    $ tags -c
+    Initialization...
+    Ok
+
+    $ tags -s tag=animals@year=2013 *.jpg
+    Information was added for 4 files
+
+    $ tags -a tag=cat photo1.jpg photo2.jpg
+    Information was updated for 2 files
+
+    $ tags -a tag=dog photo3.jpg
+    Information was updated for 1 files
+
+    $ tags -a tag=fox photo4.jpg
+    Information was updated for 1 files
+
+    $ tags -a tag=pets -w tag=cat,dog *.jpg
+    Information was updated for 3 files
+
+    $ tags -l
+    photo1.jpg
+    photo3.jpg
+    photo4.jpg
+    photo2.jpg
+
+    $ tags -l -w tag=dog,fox
+    photo3.jpg
+    photo4.jpg
+
+    $ tags -d year photo1.jpg
+    Information was updated for 1 files
+
+    $ tags -l -w tag=cat -f @FileName,year
+    photo1.jpg	-
+    photo2.jpg	2013
+
+    $ tags -l -w year -f @FileName,@FileSize,year
+    photo3.jpg	2089322	2013
+    photo4.jpg	2130072	2013
+    photo2.jpg	2271426	2013
+
+    $ tags -l -w year= -f @FileSize,@FileName
+    2059851	photo1.jpg
+
+    $ tags -p
+    tag	4
+      tag=dog	1
+      tag=fox	1
+      tag=cat	2
+      tag=pets	3
+      tag=animals	4
+    year	3
+      year=2013	3
+
+   $ cat tags.info
+
+!tags-info
+!version=0.1
+!format=simple
+
+[2059851:23294b67e1709a54d8842d9c69cc3e79bda68711]
+!FileName=photo1.jpg
+tag=animals,cat,pets
+
+[2089322:12e80aa26d5c507bd0bf5bcc621f500a6009582c]
+!FileName=photo3.jpg
+tag=animals,dog,pets
+year=2013
+
+[2130072:882f5fd53bbde4b0df78586418f28164455ddcb7]
+!FileName=photo4.jpg
+tag=animals,fox
+year=2013
+
+[2271426:21bfbceac90ef9241fb3c0f48cfc4deabb0881a0]
+!FileName=photo2.jpg
+tag=animals,cat,pets
+year=2013
+
