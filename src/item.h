@@ -24,11 +24,12 @@
 #include <stddef.h>
 
 #include "property.h"
+#include "common.h"
 
 struct ItemStruct
 {
 	size_t                fileSize;
-	char                  hash[44];
+	char                  hash[FILE_HASH_LEN + 1];
 	unsigned int          fileNameMax;
 	unsigned int          fileNameCount;
 	char                  **fileNames;

@@ -38,14 +38,15 @@ struct ItemStruct* itemInit(const char fileCrc[], size_t fileSize)
 	struct ItemStruct *item = malloc(sizeof(struct ItemStruct));
 	if (item != NULL)
 	{
-		item->fileNameMax = 0;
+		item->fileNameMax   = 0;
 		item->fileNameCount = 0;
-		item->fileNames = NULL;
-		item->fileSize = fileSize;
-		item->propsMax = 0;
-		item->propsCount = 0;
-		item->props = NULL;
-		strncpy(item->hash, fileCrc, sizeof(item->hash));
+		item->fileNames     = NULL;
+		item->fileSize      = fileSize;
+		item->propsMax      = 0;
+		item->propsCount    = 0;
+		item->props         = NULL;
+		strncpy(item->hash, fileCrc, FILE_HASH_LEN);
+		item->hash[FILE_HASH_LEN] = '\0';
 	}
 	return item;
 }

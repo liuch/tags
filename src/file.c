@@ -96,7 +96,7 @@ void fileInfoError(const char *fileName, enum ErrorId err)
 		case ErrorOther:
 			perror(fileName);
 		default:
-			fprintf(stderr, "Error: fileInfo failed\n");
+			fputs("Error: fileInfo failed\n", stderr);
 	}
 }
 
@@ -131,7 +131,7 @@ int fileBaseNameOffset(char **filesArray, unsigned int filesCount)
 		{
 			if (len != dirLen || strncmp(dirStr, fStr, len) != 0)
 			{
-				fprintf(stderr, "Error: The files are not located in the same directory\n");
+				fputs("Error: The files are not located in the same directory\n", stderr);
 				return -1;
 			}
 		}
@@ -139,7 +139,7 @@ int fileBaseNameOffset(char **filesArray, unsigned int filesCount)
 		{
 			if (len >= PATH_MAX)
 			{
-				fprintf(stderr, "Error: path too long\n");
+				fputs("Error: path too long\n", stderr);
 				return -1;
 			}
 			strncpy(dirStr, fStr, len);
@@ -176,13 +176,13 @@ struct FileItemList *fileitemsInitFromList(char **filesArray, unsigned int files
 					unsigned int len = strlen(filesArray[i]);
 					if (len >= PATH_MAX)
 					{
-						fprintf(stderr, "Error: path too long\n");
+						fputs("Error: path too long\n", stderr);
 						break;
 					}
 					struct FileItem *fi = malloc(sizeof(struct FileItem));
 					if (fi == NULL)
 					{
-						fprintf(stderr, "Error: fileitemsInitFromList failed\n");
+						fputs("Error: fileitemsInitFromList failed\n", stderr);
 						break;
 					}
 					fi->size = fsz;
@@ -192,7 +192,7 @@ struct FileItemList *fileitemsInitFromList(char **filesArray, unsigned int files
 					fi->userData = 0;
 					if (fileitemsInsertItem(fil, fi, mask) != EXIT_SUCCESS)
 					{
-						fprintf(stderr, "Error: fileitemsInsertItem failed\n");
+						fputs("Error: fileitemsInsertItem failed\n",stderr);
 						break;
 					}
 				}

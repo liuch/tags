@@ -19,11 +19,12 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "common.h"
-#include "tagfile.h"
+#include "tags.h"
 
 #define VERSION_STRING "0.0.1"
 
@@ -111,14 +112,14 @@ int main(int argc, char *argv[])
 		if (flags == InitFlag) // -c option
 		{
 			if (filesCnt == 0 && whrOptArg == NULL && fieldsList == NULL)
-				return tagfileCreate();
+				return tagsCreateIndex();
 		}
 		else if (flags == InfoFlag) // -i option
 		{
 			if (filesCnt > 0)
 			{
 				if (whrOptArg == NULL && fieldsList == NULL)
-					return tagfileStatus(&argv[optind], filesCnt);
+					return tagsStatus(&argv[optind], filesCnt);
 			}
 			else
 				warn = WarnFiles;
@@ -126,12 +127,12 @@ int main(int argc, char *argv[])
 		else if ((flags & ListFlag) != 0) // -l option
 		{
 			if ((flags & ~(ListFlag | RecurFlag)) == 0 && filesCnt == 0)
-				return tagfileListStart(fieldsList, whrOptArg);
+				return tagsList(fieldsList, whrOptArg);
 		}
 		else if ((flags & PropFlag) != 0) // -p option
 		{
 			if ((flags & ~(PropFlag | RecurFlag)) == 0 && filesCnt == 0 && whrOptArg == NULL && fieldsList == NULL)
-				return tagfileShowPropsStart(NULL, NULL);
+				return tagsShowProps();
 		}
 		else if (flags == VersionFlag) // -v option
 		{
@@ -148,7 +149,7 @@ int main(int argc, char *argv[])
 		{
 			int filesCnt = argc - optind;
 			if (filesCnt > 0)
-				return tagfileUpdateFileInfo(&argv[optind], filesCnt, addOptArg, delOptArg, setOptArg, whrOptArg);
+				return tagsUpdateFileInfo(&argv[optind], filesCnt, addOptArg, delOptArg, setOptArg, whrOptArg);
 			else
 				warn = WarnFiles;
 		}

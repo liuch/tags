@@ -1,5 +1,5 @@
 /*
- * common.h
+ * tags.h
  * Copyright (C) 2013  Aleksey Andreev
  *
  * This program is free software; you can redistribute it and/or
@@ -18,23 +18,13 @@
  *
  */
 
-#ifndef COMMON_H
-#define COMMON_H
+#ifndef TAGS_H
+#define TAGS_H
 
-enum ProgFlags
-{
-	NoneFlag = 0,
-	HelpFlag = 1,
-	InitFlag = 2,
-	InfoFlag = 4,
-	ListFlag = 8,
-	PropFlag = 16,
-	RecurFlag = 32,
-	VersionFlag = 64
-};
+int tagsCreateIndex(void);
+int tagsStatus(char **filesArray, unsigned int filesCount);
+int tagsList(const char *fieldsStr, const char *whrPropStr);
+int tagsShowProps(void);
+int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char *delPropStr, char *setPropStr, const char *whrPropStr);
 
-extern enum ProgFlags flags;
-
-#define FILE_HASH_LEN 40
-
-#endif // COMMON_H
+#endif // TAGS_H

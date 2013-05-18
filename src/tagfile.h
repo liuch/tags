@@ -26,14 +26,14 @@
 #include "file.h"
 #include "item.h"
 #include "errors.h"
+#include "where.h"
+#include "fields.h"
 
 enum TagFileMode {ReadOnly, ReadWrite};
 enum TagFileEof {EofNo, EofYes};
-enum TagFileType {TypeNormal, TypeFd};
 
 struct TagFileStruct
 {
-	enum TagFileType type;
 	FILE             *fd;
 	char             *dirPath;
 	unsigned int     dirLen;
@@ -44,13 +44,22 @@ struct TagFileStruct
 	unsigned int     curLineNum;
 	char             *readBuffer;
 	enum TagFileEof  eof;
+	size_t           curItemSize;
+	char             *curItemHash;
+	int              findFlag;
+	FILE             *fdModif;
+	FILE             *fdInsert;
 };
 
-int tagfileCreate();
-int tagfileStatus(char **filesArray, unsigned int filesCount);
-FILE *tagfileAddFile(FILE *fdSou, struct FileItemList *fil, char *addPropStr, char *setPropStr);
-int tagfileUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char *delPropStr, char *setPropStr, const char *whrPropStr);
-int tagfileListStart(const char *fieldsStr, const char *whrPropStr);
-int tagfileShowPropsStart(const char *path, struct ItemStruct *item);
+int tagfileCreateIndex();
+struct TagFileStruct *tagfileInit(const char *dPath, const char *fName, enum TagFileMode mode);
+void tagfileFree(struct TagFileStruct *tf);
+int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz);
+struct ItemStruct *tagfileItemLoad(struct TagFileStruct *tf);
+int tagfileList(struct TagFileStruct *tf, struct FieldListStruct *fields, const struct WhereStruct *whr);
+int tagfileShowProps(struct TagFileStruct *tf, struct ItemStruct *item);
+enum ErrorId tagfileSetAppendMode(struct TagFileStruct *tf);
+enum ErrorId tagfileInsertItem(struct TagFileStruct *tf, const struct ItemStruct *item);
+enum ErrorId tagfileApplyModifications(struct TagFileStruct *tf);
 
 #endif // TAGFILE_H

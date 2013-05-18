@@ -2,7 +2,7 @@
 
 #override compile_flags += `xml2-config --cflags --libs` `mysql_config --include --libs`
 
-src_files             := src/main src/tagfile src/sha1 src/property src/file src/item src/common src/fields src/utils src/errors src/where
+src_files             := src/main src/tags src/tagfile src/sha1 src/property src/file src/item src/common src/fields src/utils src/errors src/where
 test_src_files        := tests/test src/property src/item src/fields src/utils src/sha1 src/file src/where
 
 proj_cfiles           := $(addsuffix .c,$(src_files))
