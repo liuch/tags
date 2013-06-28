@@ -36,7 +36,7 @@ void showWarning(enum WarnMode mode);
 
 int main(int argc, char *argv[])
 {
-	if (argc == 0)
+	if (argc == 1)
 	{
 		showWarning(WarnOptions);
 		return EXIT_FAILURE;
