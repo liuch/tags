@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
+#include <getopt.h>
 
 #include "common.h"
 #include "tags.h"
@@ -29,6 +29,22 @@
 #define VERSION_STRING "0.0.1"
 
 enum WarnMode { WarnOptions, WarnFiles, WarnOther };
+
+struct option long_options[] = {
+	{ "append-value", required_argument, NULL, 'a' },
+	{ "create-index", no_argument,       NULL, 'c' },
+	{ "remove-value", required_argument, NULL, 'd' },
+	{ "fields-list",  required_argument, NULL, 'f' },
+	{ "help",         no_argument,       NULL, 'h' },
+	{ "file-info",    no_argument,       NULL, 'i' },
+	{ "file-list",    no_argument,       NULL, 'l' },
+	{ "value-list",   no_argument,       NULL, 'p' },
+	{ "recursive",    no_argument,       NULL, 'r' },
+	{ "set-value",    required_argument, NULL, 's' },
+	{ "version",      no_argument,       NULL, 'v' },
+	{ "where",        required_argument, NULL, 'w' },
+	{ NULL,           0,                 NULL, 0   }
+};
 
 void showHelp();
 void showVersion();
@@ -43,14 +59,14 @@ int main(int argc, char *argv[])
 	}
 
 	int res = EXIT_SUCCESS;
-	int opt;
+	int opt, oi = -1;
 	char *addOptArg = NULL;
 	char *delOptArg = NULL;
 	char *setOptArg = NULL;
 	char *whrOptArg = NULL;
 	char *fieldsList = NULL;
 	flags = NoneFlag;
-	while (res == EXIT_SUCCESS && (opt = getopt(argc, argv, ":a:cd:f:hilprs:vw:")) != -1)
+	while (res == EXIT_SUCCESS && (opt = getopt_long(argc, argv, "a:cd:f:hilprs:vw:", long_options, &oi)) != -1)
 	{
 		switch (opt)
 		{
@@ -90,13 +106,7 @@ int main(int argc, char *argv[])
 			case 'w':
 				whrOptArg = optarg;
 				break;
-			case ':':
-				fprintf(stderr, "option needs a value: %c\n", optopt);
-				showWarning(WarnOther);
-				res = EXIT_FAILURE;
-				break;
-			case '?':
-				fprintf(stderr, "unknown option: %c\n", optopt);
+			default:
 				showWarning(WarnOther);
 				res = EXIT_FAILURE;
 				break;
@@ -165,22 +175,34 @@ void showHelp()
 		"Sets and displays the properties of a file, that stored in a special index file in the same folder.\n"
 		"The program does not modify any files except its index file!\n"
 		"\nKeys:\n"
-		"  -a APPEND_LIST  adds the value of the parameters for the specified files\n"
-		"  -c              creates empty index file in the current directory and exit.\n"
-		"                  The index file is created only if it is not present\n"
-		"  -d DELETE_LIST  removes information about the specified files, their parameters or\n"
-		"                  the individual values of parameters from the index\n"
-		"  -f FIELDS_LIST  fields list for -l key\n"
-		"  -h              show this help\n"
-		"  -i              output short information about the specified files\n"
-		"  -l              displays fields separated by tabs, one line for each file in the index.\n"
-		"                  List of fields you specify in the -f key.\n"
-		"                  If the -f key is not specified, displayed a list of files\n"
-		"  -p              output summary information about a properties\n"
-		"  -r              the recursive flag. Can be used with -l and -p keys\n"
-		"  -s SET_LIST     sets the parameters and their values for the specified files\n"
-		"  -v              output version information and exit\n"
-		"  -w WHERE_LIST   list of a conditions. Use with -a, -s, -d and -l keys\n"
+		"  -a, --append-value APPEND_LIST\n"
+		"          adds the value of the parameters for the specified files\n"
+		"  -c, --create-index\n"
+		"          creates empty index file in the current directory and exit.\n"
+		"          The index file is created only if it is not present\n"
+		"  -d, --remove-value DELETE_LIST\n"
+		"          removes information about the specified files, their parameters or\n"
+		"          the individual values of parameters from the index\n"
+		"  -f, --fields-list FIELDS_LIST\n"
+		"          fields list for -l key\n"
+		"  -h, --help\n"
+		"          show this help\n"
+		"  -i, --file-info\n"
+		"          output short information about the specified files\n"
+		"  -l, --file-list\n"
+		"          displays fields separated by tabs, one line for each file in the index.\n"
+		"          List of fields you specify in the -f key.\n"
+		"          If the -f key is not specified, displayed a list of files\n"
+		"  -p, --value-list\n"
+		"          output summary information about a properties\n"
+		"  -r, --recursive\n"
+		"          the recursive flag. Can be used with -l and -p keys\n"
+		"  -s, --set-value SET_LIST\n"
+		"          sets the parameters and their values for the specified files\n"
+		"  -v, --version\n"
+		"          output version information and exit\n"
+		"  -w, --where WHERE_LIST\n"
+		"          list of a conditions. Use with -a, -s, -d and -l keys\n"
 		"  Note: when using the -a, -d, -i and -s keys, you must specify one or more files\n"
 		"  Note: keys -a, -d, and -s can be used simultaneously\n"
 		"\nAPPEND_LIST, DELETE_LIST, SET_LIST specification:\n"
@@ -234,5 +256,5 @@ void showWarning(enum WarnMode mode)
 		default:
 			;
 	}
-	fputs("Run `tags -h` for get help.\n", stdout);
+	fputs("Run `tags -h` for get help.\n", stderr);
 }
