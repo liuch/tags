@@ -259,7 +259,10 @@ struct PropertyStruct* propAddSubval(struct PropertyStruct *prop, const char *va
 		{
 			struct PropertyStruct *newProp = propInit(propGetName(prop), value);
 			if (newProp != NULL)
+			{
+				newProp->userData = prop->userData;
 				propFree(prop);
+			}
 			return newProp;
 		}
 	}
