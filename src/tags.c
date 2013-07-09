@@ -197,7 +197,9 @@ int tagsShowProps(void)
 			for (k = 0; k < subCount; ++k)
 			{
 				const struct SubvalHandle *subval = ps[k];
-				fprintf(stdout, "  %s=%s\t%i\n", propName, subvalString(subval), subval->userData + 1);
+				const char *str = subvalString(subval);
+				if (*str != '\0')
+					fprintf(stdout, "  %s=%s\t%i\n", propName, subvalString(subval), subval->userData + 1);
 			}
 		}
 	}
