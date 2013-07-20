@@ -131,6 +131,7 @@ void itemRemoveFileName(struct ItemStruct *item, const char *fileName)
 		*pName = NULL;
 		if (item->fileNameCount == 0)
 		{
+			item->fileNameMax = 0;
 			free(item->fileNames);
 			item->fileNames = NULL;
 		}
