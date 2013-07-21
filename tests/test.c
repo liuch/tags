@@ -255,6 +255,69 @@ void testProp()
 		}
 	}
 
+	{
+		++tests_cnt;
+		testNm = "propIsEmpty";
+		struct PropertyStruct *prop1 = propInit("testName_10", "testVal_10");
+		if (propIsEmpty(prop1))
+		{
+			++errors_cnt;
+			printFailed("not empty");
+		}
+		propFree(prop1);
+		prop1 = propInit("testName_10", "");
+		if (!propIsEmpty(prop1))
+		{
+			++errors_cnt;
+			printFailed("empty 1");
+		}
+		propFree(prop1);
+	}
+
+	{
+		++tests_cnt;
+		testNm = "propIsEqualValue";
+		struct PropertyStruct *prop1 = propInit("testName_10", "");
+		struct PropertyStruct *prop2 = propInit("testName_20", "");
+		if (!propIsEqualValue(prop1, prop2))
+		{
+			++errors_cnt;
+			printFailed("empty");
+		}
+		propFree(prop1);
+		prop1 = propInit("testName_10", "testVal_10");
+		if (propIsEqualValue(prop1, prop2))
+		{
+			++errors_cnt;
+			printFailed("test e=!e");
+		}
+		propFree(prop1);
+		prop1 = propInit("testName_10", "testVal_10,testVal_11");
+		propFree(prop2);
+		prop2 = propInit("testName_20", "testVal_10");
+		if (propIsEqualValue(prop1, prop2))
+		{
+			++errors_cnt;
+			printFailed("test 2=1");
+		}
+		propFree(prop2);
+		prop2 = propInit("testName_20", "testVal_10,testVal_12");
+		if (propIsEqualValue(prop1, prop2))
+		{
+			++errors_cnt;
+			printFailed("test 11=12");
+		}
+		propFree(prop2);
+		prop2 = propInit("testName_20", "testVal_11,testVal_10");
+		if (!propIsEqualValue(prop1, prop2))
+		{
+			++errors_cnt;
+			printFailed("test 2=2");
+		}
+		propFree(prop1);
+		propFree(prop2);
+	}
+
 	propFree(propEnum);
 }
 
@@ -923,6 +986,76 @@ void testItem()
 				}
 			}
 		}
+		itemFree(item1);
+	}
+
+	{
+		++tests_cnt;
+		testNm = "itemIsEqual";
+		struct ItemStruct *item1 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		struct ItemStruct *item2 = itemInit("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", 4);
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check empty");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(5, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check size");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "badhashbadhashbadhashbadhashbadhashbadha", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check hash");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=@testName_20=testVal_20,testVal_21@testName_30=");
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check 10");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check 11");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20@testName_30=");
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check 20");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21");
+		if (itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check 30");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_20=testVal_20,testVal_21@testName_30=@testName_10=testVal_10,testVal_11");
+		if (!itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check full");
+		}
+		itemFree(item2);
+		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile2", NULL, "testName_20=testVal_20,testVal_21@testName_30=@testName_10=testVal_10,testVal_11");
+		if (!itemIsEqual(item1, item2))
+		{
+			++errors_cnt;
+			printFailed("check file");
+		}
+		itemFree(item2);
 		itemFree(item1);
 	}
 
