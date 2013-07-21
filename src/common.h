@@ -30,7 +30,8 @@ enum ProgFlags
 	ListFlag = 8,
 	PropFlag = 16,
 	RecurFlag = 32,
-	VersionFlag = 64
+	VersionFlag = 64,
+	MoveFileFlag = 128
 };
 
 extern enum ProgFlags flags;

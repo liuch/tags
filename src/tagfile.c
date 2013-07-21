@@ -52,6 +52,8 @@ enum ErrorId tagfileReadString(struct TagFileStruct *tf);
 enum ErrorId tagfileWriteString(struct TagFileStruct *tf, const char *str);
 enum ErrorId tagfileItemBodyLoad(struct TagFileStruct *tf, struct ItemStruct *item);
 struct ItemStruct *tagfileGetNextItem(struct TagFileStruct *tf);
+enum ErrorId tagfileOpenTempWriteFile(struct TagFileStruct *tf);
+void tagfileCloseTemporaryFiles(struct TagFileStruct *tf);
 
 
 int tagfileCreateIndex()
@@ -102,8 +104,31 @@ struct TagFileStruct *tagfileInit(const char* dPath, const char* fName, enum Tag
 	return tf;
 }
 
+enum ErrorId tagfileReinit(struct TagFileStruct *tf, enum TagFileMode mode)
+{
+	if (tf->mode == ReadWrite)
+		tagfileCloseTemporaryFiles(tf);
+	tf->mode          = mode;
+	tf->lastError     = ErrorNone;
+	tf->curLineNum    = 0;
+	tf->readBuffer[0] = '\0';
+	tf->curItemSize   = 0;
+	tf->curItemHash   = NULL;
+	tf->findFlag      = 0;
+	if (fseek(tf->fd, 0L, SEEK_SET) != -1)
+	{
+		if (mode == ReadWrite)
+			if (tagfileOpenTempWriteFile(tf) != ErrorNone)
+				return tf->lastError;
+	}
+	else
+		tf->lastError = ErrorInternal;
+	return tf->lastError;
+}
+
 void tagfileFree(struct TagFileStruct *tf)
 {
+	tagfileCloseTemporaryFiles(tf);
 	tagfileClose(tf);
 	if (tf->dirPath != NULL)
 		free(tf->dirPath);
@@ -112,7 +137,7 @@ void tagfileFree(struct TagFileStruct *tf)
 	free(tf);
 }
 
-int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz)
+int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char *hash)
 {
 	if (feof(tagfileGetReadFd(tf)))
 	{
@@ -143,12 +168,25 @@ int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz)
 				tf->lastError = ErrorInvalidIndex;
 				return 0;
 			}
-			if (sz == 0 || sz == tf->curItemSize)
+			int sizeCmp = 0;
+			int hashCmp = 0;
+			if (sz != 0)
 			{
-				tf->findFlag = 1;
-				return 1;
+				sizeCmp = sz - tf->curItemSize;
+				if (hash != NULL)
+					hashCmp = strncmp(hash, tf->curItemHash, FILE_HASH_LEN);
 			}
-			if (sz < tf->curItemSize)
+			if (sizeCmp == 0)
+			{
+				if (hashCmp == 0)
+				{
+					tf->findFlag = 1;
+					return 1;
+				}
+				if (hashCmp < 0)
+					return 0;
+			}
+			else if (sz < tf->curItemSize)
 				return 0;
 		}
 
@@ -399,6 +437,27 @@ enum ErrorId tagfileApplyModifications(struct TagFileStruct *tf)
 	}
 	tf->lastError = res;
 	return res;
+}
+
+struct ItemStruct *tagfileGetItemByFileName(struct TagFileStruct *tf, const char *fileName)
+{
+	struct ItemStruct *item;
+	enum TagFileMode mode = tf->mode;
+	while ((item = tagfileGetNextItem(tf)) != NULL)
+	{
+		if (itemIsFileName(item, fileName))
+			return item;
+		if (mode == ReadWrite)
+		{
+			enum ErrorId res = tagfileInsertItem(tf, item);
+			itemFree(item);
+			if (res != ErrorNone)
+				break;
+		}
+	}
+	if (tf->lastError != ErrorEOF)
+		fputs("Error: tagfileGetItemByFileName failed\n", stderr);
+	return NULL;
 }
 
 /******************************* Private ******************************/
@@ -663,12 +722,8 @@ enum ErrorId tagfileOpen(struct TagFileStruct *tf)
 
 	if (tf->mode == ReadWrite)
 	{
-		tf->fdModif = tmpfile();
-		if (tf->fdModif == NULL)
-		{
-			tf->lastError = ErrorOther;
-			perror("tmpfile");
-		}
+		if (tagfileOpenTempWriteFile(tf) != ErrorNone)
+			return tf->lastError;
 	}
 
 	return tf->lastError;
@@ -698,16 +753,6 @@ void tagfileClose(struct TagFileStruct *tf)
 	{
 		free(tf->readBuffer);
 		tf->readBuffer = NULL;
-	}
-	if (tf->fdModif != NULL)
-	{
-		fclose(tf->fdModif);
-		tf->fdModif = NULL;
-	}
-	if (tf->fdInsert != NULL)
-	{
-		fclose(tf->fdInsert);
-		tf->fdInsert = NULL;
 	}
 }
 
@@ -813,7 +858,7 @@ enum ErrorId tagfileItemBodyLoad(struct TagFileStruct *tf, struct ItemStruct *it
 
 struct ItemStruct *tagfileGetNextItem(struct TagFileStruct *tf)
 {
-	if (!tagfileFindNextItemPosition(tf, 0))
+	if (!tagfileFindNextItemPosition(tf, 0, NULL))
 		return NULL;
 
 	return tagfileItemLoad(tf);
@@ -833,4 +878,31 @@ FILE *tagfileGetWriteFd(const struct TagFileStruct *tf)
 	if (fd == NULL)
 		fd = tf->fdModif;
 	return fd;
+}
+
+void tagfileCloseTemporaryFiles(struct TagFileStruct *tf)
+{
+	if (tf->fdModif != NULL)
+	{
+		fclose(tf->fdModif);
+		tf->fdModif = NULL;
+	}
+	if (tf->fdInsert != NULL)
+	{
+		fclose(tf->fdInsert);
+		tf->fdInsert = NULL;
+	}
+}
+
+enum ErrorId tagfileOpenTempWriteFile(struct TagFileStruct *tf)
+{
+	tf->fdModif = tmpfile();
+	if (tf->fdModif == NULL)
+	{
+		tf->lastError = ErrorOther;
+		perror("tmpfile");
+	}
+	else
+		tf->lastError = ErrorNone;
+	return tf->lastError;
 }

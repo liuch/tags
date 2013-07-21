@@ -26,5 +26,6 @@ int tagsStatus(char **filesArray, unsigned int filesCount);
 int tagsList(const char *fieldsStr, const char *whrPropStr);
 int tagsShowProps(void);
 int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char *delPropStr, char *setPropStr, const char *whrPropStr);
+int moveFile(char **filesArray);
 
 #endif // TAGS_H

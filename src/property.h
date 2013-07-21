@@ -52,6 +52,7 @@ struct PropertyStruct *propInit(const char *name, const char *value);
 void propFree(struct PropertyStruct *prop);
 const char *propGetName(const struct PropertyStruct *prop);
 int propIsEmpty(struct PropertyStruct *prop);
+int propIsEqualValue(struct PropertyStruct *prop1, struct PropertyStruct *prop2);
 const char *propGetSubval(struct PropertyStruct *prop, unsigned int num, enum PropSubvalOrder order);
 struct SubvalHandle  **propGetValueIndex(struct PropertyStruct *prop, enum PropSubvalOrder order);
 int propAddSubvalues(struct PropertyStruct **pp, const char *value);

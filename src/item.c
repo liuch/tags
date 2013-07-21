@@ -167,7 +167,25 @@ void itemClearFileNames(struct ItemStruct *item)
 		item->fileNameCount = 0;
 		item->fileNameMax = 0;
 	}
-	return EXIT_SUCCESS;
+}
+
+int itemIsEqual(const struct ItemStruct *item1, const struct ItemStruct *item2)
+{
+	if (item1->fileSize != item2->fileSize || item1->propsCount != item2->propsCount || strcmp(item1->hash, item2->hash) != 0)
+		return 0;
+
+	const unsigned int propCnt = item1->propsCount;
+	unsigned int i = 0;
+	for ( ; i < propCnt; ++i)
+	{
+		struct PropertyStruct *prop1 = *itemGetPropArrayAddrByNum(item1, i);
+		struct PropertyStruct **pProp2 = itemGetPropertyPosByName(item2, propGetName(prop1));
+		if (pProp2 == NULL)
+			return 0;
+		if (!propIsEqualValue(prop1, *pProp2))
+			return 0;
+	}
+	return 1;
 }
 
 int itemMerge(struct ItemStruct *itemTo, struct ItemStruct *itemFrom)

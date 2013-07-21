@@ -146,6 +146,22 @@ int propIsEmpty(struct PropertyStruct *prop)
 	return (prop->valCount == 1 && (propGetSubval(prop, 0, None))[0] == '\0') ? 1 : 0;
 }
 
+int propIsEqualValue(struct PropertyStruct *prop1, struct PropertyStruct *prop2)
+{
+	const unsigned int valCnt = prop1->valCount;
+	if (valCnt != prop2->valCount)
+		return 0;
+
+	unsigned int i = 0;
+	for ( ; i < valCnt; ++i)
+	{
+		const char *valueStr = propGetSubval(prop1, i, None);
+		if (!propIsSubval(prop2, valueStr))
+			return 0;
+	}
+	return 1;
+}
+
 const char *propGetSubval(struct PropertyStruct *prop, unsigned int num, enum PropSubvalOrder order)
 {
 	if (num >= prop->valCount)

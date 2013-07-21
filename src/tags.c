@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <limits.h>
 
 #include "tags.h"
 #include "tagfile.h"
@@ -67,7 +68,7 @@ int tagsStatus(char **filesArray, unsigned int filesCount)
 		size_t szCur            = pFi[szCurPos]->size;
 		while (tf->lastError == ErrorNone)
 		{
-			if (!tagfileFindNextItemPosition(tf, szCur))
+			if (!tagfileFindNextItemPosition(tf, szCur, NULL))
 			{
 				if (tf->lastError != ErrorNone)
 					break;
@@ -259,7 +260,7 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 			size_t size             = pFi[0]->size;
 			while (fiStartIdx < fCount)
 			{
-				if (tagfileFindNextItemPosition(tf, size))
+				if (tagfileFindNextItemPosition(tf, size, NULL))
 				{
 					struct ItemStruct *item = tagfileItemLoad(tf);
 					if (item == NULL)
@@ -386,16 +387,7 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 										int fnd = 0;
 										if (!fEof)
 										{
-											while ((fnd = tagfileFindNextItemPosition(tf, fi->size)))
-											{
-												int hashCmp = strncmp(tf->curItemHash, fi->hash, FILE_HASH_LEN);
-												if (hashCmp <= 0)
-												{
-													if (hashCmp != 0)
-														fnd = 0;
-													break;
-												}
-											}
+											fnd = tagfileFindNextItemPosition(tf, fi->size, fi->hash);
 											if (fnd)
 											{
 												item = tagfileItemLoad(tf);
@@ -478,4 +470,148 @@ free_resources:
 		whereFree(whr);
 	tagfileFree(tf);
 	return res;
+}
+
+int moveFile(char **filesArray)
+{
+	char oldDir[PATH_MAX]; *oldDir = '\0';
+	char newDir[PATH_MAX]; *newDir = '\0';
+	char *oldName = filesArray[0];
+	char *newName = filesArray[1];
+	if (strlen(oldName) >= PATH_MAX || strlen(newName) >= PATH_MAX)
+	{
+		fputs("Error: path too long\n", stderr);
+		return EXIT_FAILURE;
+	}
+	int oldNameOffset = fileBaseNameOffset(&oldName, 1);
+	int newNameOffset = fileBaseNameOffset(&newName, 1);
+	if (oldNameOffset < 0 || newNameOffset < 0)
+		return EXIT_FAILURE;
+	if (oldNameOffset != 0)
+	{
+		strncpy(oldDir, oldName, oldNameOffset);
+		oldDir[oldNameOffset] = '\0';
+		oldName += oldNameOffset;
+	}
+	if (newNameOffset != 0)
+	{
+		strncpy(newDir, newName, newNameOffset);
+		newDir[newNameOffset] = '\0';
+		newName += newNameOffset;
+	}
+
+	int cmpDirs = (oldNameOffset == newNameOffset) ? strcmp(oldDir, newDir) : 1;
+	int cmpNames = strcmp(oldName, newName);
+	if (cmpDirs == 0 && cmpNames == 0)
+	{
+		fputs("Error: source and destination path must be different\n", stderr);
+		return EXIT_FAILURE;
+	}
+
+	struct TagFileStruct *tfSrc = tagfileInit(oldDir, NULL, (cmpDirs == 0) ? ReadOnly : ReadWrite);
+	if (tfSrc == NULL)
+		return EXIT_FAILURE;
+	if (tfSrc->lastError != ErrorNone)
+	{
+		tagfileFree(tfSrc);
+		return EXIT_FAILURE;
+	}
+	struct TagFileStruct *tfDst = tfSrc;
+	if (cmpDirs != 0)
+	{
+		tfDst = tagfileInit(newDir, NULL, ReadOnly);
+		if (tfDst == NULL || tfDst->lastError != ErrorNone)
+		{
+			tagfileFree(tfSrc);
+			if (tfDst != NULL)
+				tagfileFree(tfDst);
+			return EXIT_FAILURE;
+		}
+	}
+
+	enum ErrorId res = ErrorNone;
+	struct ItemStruct *itemTmp = tagfileGetItemByFileName(tfDst, newName);
+	if (itemTmp == NULL)
+	{
+		if (tagfileReinit(tfDst, ReadWrite) == ErrorNone)
+		{
+			struct ItemStruct *itemSrc = tagfileGetItemByFileName(tfSrc, oldName);
+			if (itemSrc != NULL)
+			{
+				struct ItemStruct *itemDst = NULL;
+				if (tfSrc != tfDst)
+				{
+					if (!tagfileFindNextItemPosition(tfDst, itemSrc->fileSize, itemSrc->hash))
+					{
+						res = tfDst->lastError;
+						if (res == ErrorEOF)
+							res = ErrorNone;
+					}
+					else
+					{
+						itemDst = tagfileItemLoad(tfDst);
+						if (itemDst != NULL)
+						{
+							if (!itemIsEqual(itemDst, itemSrc))
+							{
+								fputs("Error: such element is exists.", stderr);
+								if (itemDst->fileNameCount != 0)
+									fprintf(stderr, " File: %s\n", itemGetFileName(itemDst, 0));
+								else
+									fprintf(stderr, " File size: %zu, file hash: %s\n", itemDst->fileSize, itemDst->hash);
+								itemFree(itemDst);
+								itemDst = NULL;
+								res = ErrorOther;
+							}
+						}
+					}
+				}
+				if (res == ErrorNone)
+				{
+					itemRemoveFileName(itemSrc, oldName);
+					if (tfDst != tfSrc)
+					{
+						if (itemSrc->fileNameCount != 0)
+							res = tagfileInsertItem(tfSrc, itemSrc);
+					}
+					if (itemDst == NULL)
+						itemDst = itemSrc;
+					if (res == ErrorNone)
+					{
+						if (tfDst != tfSrc && itemDst == itemSrc)
+							itemClearFileNames(itemDst);
+						if ((res = itemAddFileName(itemDst, newName)) == ErrorNone)
+							res = tagfileInsertItem(tfDst, itemDst);
+					}
+					if (itemDst != itemSrc)
+						itemFree(itemDst);
+				}
+				itemFree(itemSrc);
+			}
+			else
+			{
+				res = tfSrc->lastError;
+				if (res == ErrorEOF)
+					fputs("Error: file not found\n", stderr);
+			}
+		}
+	}
+	else
+	{
+		res = ErrorOther;
+		itemFree(itemTmp);
+		fputs("Error: the file already exists.\n", stderr);
+	}
+
+	if (res == ErrorNone)
+	{
+		res = tagfileApplyModifications(tfDst);
+		if (res == ErrorNone && tfSrc != tfDst)
+			res = tagfileApplyModifications(tfSrc);
+	}
+
+	tagfileFree(tfSrc);
+	if (tfDst != NULL && tfDst != tfSrc)
+		tagfileFree(tfDst);
+	return (res == ErrorNone) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

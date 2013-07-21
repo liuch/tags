@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <getopt.h>
+#include <limits.h>
 
 #include "common.h"
 #include "tags.h"
@@ -29,6 +30,10 @@
 #define VERSION_STRING "0.0.1"
 
 enum WarnMode { WarnOptions, WarnFiles, WarnOther };
+
+enum {
+	MoveFileOption = CHAR_MAX + 1
+};
 
 struct option long_options[] = {
 	{ "append-value", required_argument, NULL, 'a' },
@@ -43,6 +48,7 @@ struct option long_options[] = {
 	{ "set-value",    required_argument, NULL, 's' },
 	{ "version",      no_argument,       NULL, 'v' },
 	{ "where",        required_argument, NULL, 'w' },
+	{ "move-file",    no_argument,       NULL, MoveFileOption },
 	{ NULL,           0,                 NULL, 0   }
 };
 
@@ -106,6 +112,9 @@ int main(int argc, char *argv[])
 			case 'w':
 				whrOptArg = optarg;
 				break;
+			case MoveFileOption:
+				flags |= MoveFileFlag;
+				break;
 			default:
 				showWarning(WarnOther);
 				res = EXIT_FAILURE;
@@ -151,6 +160,11 @@ int main(int argc, char *argv[])
 				showVersion();
 				return EXIT_SUCCESS;
 			}
+		}
+		else if (flags == MoveFileFlag) // --rename-file option
+		{
+			if (filesCnt == 2 && whrOptArg == NULL && fieldsList == NULL)
+				return moveFile(&argv[optind]);
 		}
 	}
 	else  // -a -d -s options
@@ -203,6 +217,9 @@ void showHelp()
 		"          output version information and exit\n"
 		"  -w, --where WHERE_LIST\n"
 		"          list of a conditions. Use with -a, -s, -d and -l keys\n"
+		"  --move-file OLD_FILE_NAME NEW_FILE_NAME\n"
+		"          change a file name within an index or transfer data to another index.\n"
+		"          OLD_FILE_NAME and NEW_FILE_NAME can contain the path to the index file\n"
 		"  Note: when using the -a, -d, -i and -s keys, you must specify one or more files\n"
 		"  Note: keys -a, -d, and -s can be used simultaneously\n"
 		"\nAPPEND_LIST, DELETE_LIST, SET_LIST specification:\n"
