@@ -45,7 +45,7 @@ int itemIsFileName(struct ItemStruct *item, const char *fileName);
 int itemAddFileName(struct ItemStruct *item, const char *fileName);
 void itemRemoveFileName(struct ItemStruct *item, const char *fileName);
 char *itemGetFileName(const struct ItemStruct *item, unsigned int pos);
-int itemClearFileNames(struct ItemStruct *item);
+void itemClearFileNames(struct ItemStruct *item);
 int itemMerge(struct ItemStruct *itemTo, struct ItemStruct *itemFrom);
 
 int itemSetProperty(struct ItemStruct *item, const char *name, const char *value);

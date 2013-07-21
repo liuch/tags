@@ -146,7 +146,7 @@ char *itemGetFileName(const struct ItemStruct *item, unsigned int pos)
 	return *pName;
 }
 
-int itemClearFileNames(struct ItemStruct *item)
+void itemClearFileNames(struct ItemStruct *item)
 {
 	if (item->fileNames != NULL)
 	{
@@ -165,6 +165,7 @@ int itemClearFileNames(struct ItemStruct *item)
 		free(item->fileNames);
 		item->fileNames = NULL;
 		item->fileNameCount = 0;
+		item->fileNameMax = 0;
 	}
 	return EXIT_SUCCESS;
 }
