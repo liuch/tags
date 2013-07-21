@@ -697,7 +697,6 @@ struct TagFileStruct *tagfileCloneForSubdir(const struct TagFileStruct *tf, cons
 enum ErrorId tagfileOpen(struct TagFileStruct *tf)
 {
 	tf->curLineNum = 0;
-	tf->eof        = EofNo;
 
 	tf->fd = fopen(tf->filePath, "r");
 	if (tf->fd == NULL)
@@ -776,10 +775,7 @@ enum ErrorId tagfileReadString(struct TagFileStruct *tf)
 
 	enum ErrorId res = ErrorOther;
 	if (feof(fdRead) != 0)
-	{
 		res = ErrorEOF;
-		tf->eof = EofYes;
-	}
 	else
 		perror("tagfile");
 	tf->lastError = res;

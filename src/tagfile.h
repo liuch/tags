@@ -30,7 +30,6 @@
 #include "fields.h"
 
 enum TagFileMode {ReadOnly, ReadWrite};
-enum TagFileEof {EofNo, EofYes};
 
 struct TagFileStruct
 {
@@ -43,7 +42,6 @@ struct TagFileStruct
 	enum ErrorId     lastError;
 	unsigned int     curLineNum;
 	char             *readBuffer;
-	enum TagFileEof  eof;
 	size_t           curItemSize;
 	char             *curItemHash;
 	int              findFlag;
