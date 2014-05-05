@@ -24,32 +24,36 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
-#include <ctype.h>
+#include <wctype.h>
 
 #include "tagfile.h"
 #include "sha1.h"
 #include "file.h"
 #include "item.h"
 #include "common.h"
+#include "utils.h"
 
-#define READ_BUFFER_SIZE 4096
+#define READ_BUFFER_INCREASE   200
+#define READ_BUFFER_MAX_LENGTH 50000
 
 const char tagFileName[] = "tags.info";
+#define tagFileNameLen     9
 
-int tagfileScanItemHeader(const char *str, size_t *pSz, char **pHash);
+int tagfileScanItemHeader(const wchar_t *str, size_t *pSz, wchar_t **pHash);
 enum ErrorId tagfileWritingTail(struct TagFileStruct *tf);
 int tagfileItemOutput(FILE *fd, const struct ItemStruct *item);
 FILE *tagfileGetReadFd(const struct TagFileStruct *tf);
 FILE *tagfileGetWriteFd(const struct TagFileStruct *tf);
 struct TagFileStruct *tagfileInitStruct(enum TagFileMode mode);
-enum ErrorId tagfileInitPath(struct TagFileStruct *tf, const char *dPath, const char *fName);
-enum ErrorId tagfileInitReadBuffer(struct TagFileStruct *tf);
+static enum ErrorId initPath(struct TagFileStruct *tf, const wchar_t *dPath, const wchar_t *fName);
+static enum ErrorId updateCharPath(struct TagFileStruct *tf);
+enum ErrorId tagfileAllocateReadBuffer(struct TagFileStruct *tf);
 struct TagFileStruct *tagfileCloneForSubdir(const struct TagFileStruct *tf, const char *subdir);
 enum ErrorId tagfileOpen(struct TagFileStruct *tf);
 enum ErrorId tagfileReadHeader(struct TagFileStruct *tf);
 void tagfileClose(struct TagFileStruct *tf);
 enum ErrorId tagfileReadString(struct TagFileStruct *tf);
-enum ErrorId tagfileWriteString(struct TagFileStruct *tf, const char *str);
+enum ErrorId tagfileWriteString(struct TagFileStruct *tf, const wchar_t *str);
 enum ErrorId tagfileItemBodyLoad(struct TagFileStruct *tf, struct ItemStruct *item);
 struct ItemStruct *tagfileGetNextItem(struct TagFileStruct *tf);
 enum ErrorId tagfileOpenTempWriteFile(struct TagFileStruct *tf);
@@ -66,7 +70,7 @@ int tagfileCreateIndex()
 		{
 			if (fputs("!tags-info", fd) != EOF && fputs("\n!version=0.1\n!format=simple\n\n", fd) != EOF)
 			{
-				fprintf(stdout, "Ok\n");
+				fputs("Ok\n", stdout);
 				res = EXIT_SUCCESS;
 			}
 			fclose(fd);
@@ -85,12 +89,29 @@ struct TagFileStruct *tagfileInit(const char* dPath, const char* fName, enum Tag
 	struct TagFileStruct *tf = tagfileInitStruct(mode);
 	if (tf != NULL)
 	{
-		enum ErrorId res = tagfileInitPath(tf, dPath, fName);
-		if (res == ErrorNone)
+		enum ErrorId res = ErrorOther;
+		wchar_t *_dir = NULL;
+		if (dPath == NULL || (_dir = makeWideCharString(dPath, 0)) != NULL)
 		{
-			res = tagfileOpen(tf);
-			if (res == ErrorNone)
-				res = tagfileReadHeader(tf);
+			wchar_t *_fname = NULL;
+			if (fName == NULL || (_fname = makeWideCharString(fName, 0)) != NULL)
+			{
+				res = initPath(tf, _dir, _fname);
+				if (res == ErrorNone)
+				{
+					res = updateCharPath(tf);
+					if (res == ErrorNone)
+					{
+						res = tagfileOpen(tf);
+						if (res == ErrorNone)
+							res = tagfileReadHeader(tf);
+					}
+				}
+				if (_fname != NULL)
+					free(_fname);
+			}
+			if (_dir != NULL)
+				free(_dir);
 		}
 		if (res != ErrorNone && res != ErrorNotFound)
 		{
@@ -98,8 +119,8 @@ struct TagFileStruct *tagfileInit(const char* dPath, const char* fName, enum Tag
 			tf = NULL;
 		}
 	}
-	else
-		fprintf(stderr, "Error: tagfileInit failed");
+	if (tf == NULL)
+		fputs("Error: tagfileInit failed\n", stderr);
 
 	return tf;
 }
@@ -111,7 +132,7 @@ enum ErrorId tagfileReinit(struct TagFileStruct *tf, enum TagFileMode mode)
 	tf->mode          = mode;
 	tf->lastError     = ErrorNone;
 	tf->curLineNum    = 0;
-	tf->readBuffer[0] = '\0';
+	tf->readBuffer.pointer[0] = L'\0';
 	tf->curItemSize   = 0;
 	tf->curItemHash   = NULL;
 	tf->findFlag      = 0;
@@ -132,12 +153,16 @@ void tagfileFree(struct TagFileStruct *tf)
 	tagfileClose(tf);
 	if (tf->dirPath != NULL)
 		free(tf->dirPath);
+	if (tf->dirPathChar != NULL)
+		free(tf->dirPathChar);
 	if (tf->filePath != NULL)
 		free(tf->filePath);
+	if (tf->filePathChar != NULL)
+		free(tf->filePathChar);
 	free(tf);
 }
 
-int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char *hash)
+int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const wchar_t *hash)
 {
 	if (feof(tagfileGetReadFd(tf)))
 	{
@@ -145,7 +170,7 @@ int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char 
 		return 0;
 	}
 
-	char *buff = tf->readBuffer;
+	wchar_t *buff = tf->readBuffer.pointer;
 	short fWrite = 0;
 	if (tf->mode == ReadWrite)
 		++fWrite;
@@ -161,7 +186,7 @@ int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char 
 
 	do
 	{
-		if (buff[0] == '[')
+		if (buff[0] == L'[')
 		{
 			if (tagfileScanItemHeader(buff, &tf->curItemSize, &tf->curItemHash) != EXIT_SUCCESS)
 			{
@@ -174,7 +199,7 @@ int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char 
 			{
 				sizeCmp = sz - tf->curItemSize;
 				if (hash != NULL)
-					hashCmp = strncmp(hash, tf->curItemHash, FILE_HASH_LEN);
+					hashCmp = wcsncmp(hash, tf->curItemHash, FILE_HASH_LEN);
 			}
 			if (sizeCmp == 0)
 			{
@@ -199,11 +224,11 @@ int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char 
 
 struct ItemStruct *tagfileItemLoad(struct TagFileStruct *tf)
 {
-	struct ItemStruct *item = itemInit(tf->curItemHash, tf->curItemSize);
+	struct ItemStruct *item = itemInit(tf->curItemSize, tf->curItemHash);
 	if (item == NULL)
 	{
 		tf->lastError = ErrorInvalidIndex;
-		fprintf(stderr, "Error: tagsItemInit failed\n");
+		fputs("Error: tagsItemInit failed\n", stderr);
 		return NULL;
 	}
 
@@ -226,23 +251,13 @@ int tagfileList(struct TagFileStruct *tf, struct FieldListStruct *fields, const 
 			if (!fltr)
 			{
 				if (fields != NULL)
-				{
-					if (fieldsPrintRow(fields, item, tf->dirPath, stdout) != EXIT_SUCCESS)
-					{
-						itemFree(item);
-						return EXIT_FAILURE;
-					}
-				}
+					res = fieldsPrintRow(fields, item, tf->dirPath, stdout);
 				else
-				{
-					if (tagfileItemOutput(stdout, item) != EXIT_SUCCESS)
-					{
-						itemFree(item);
-						return EXIT_FAILURE;
-					}
-				}
+					res = tagfileItemOutput(stdout, item);
 			}
 			itemFree(item);
+			if (res != EXIT_SUCCESS)
+				return EXIT_FAILURE;
 		}
 		if (tf->lastError != ErrorEOF && tf->lastError != ErrorNone)
 			res = EXIT_FAILURE;
@@ -252,7 +267,7 @@ int tagfileList(struct TagFileStruct *tf, struct FieldListStruct *fields, const 
 	if ((flags & RecurFlag) != 0)
 	{
 		DirEntry dir;
-		int cnt = dirList(tf->dirPath, "*", &dir);
+		int cnt = dirList(tf->dirPathChar, "*", &dir);
 		if (cnt == -1)
 			return EXIT_FAILURE;
 		int i;
@@ -308,7 +323,7 @@ int tagfileShowProps(struct TagFileStruct *tf, struct ItemStruct *item)
 	if ((flags & RecurFlag) != 0)
 	{
 		DirEntry dir;
-		int cnt = dirList(tf->dirPath, "*", &dir);
+		int cnt = dirList(tf->dirPathChar, "*", &dir);
 		int i;
 		for (i = 0; i < cnt; ++i)
 		{
@@ -359,7 +374,7 @@ enum ErrorId tagfileInsertItem(struct TagFileStruct *tf, const struct ItemStruct
 
 	FILE *fdWrite = tagfileGetWriteFd(tf);
 	if (tagfileItemOutput(fdWrite, item) == EXIT_SUCCESS)
-		if (fputc('\n', fdWrite) != EOF)
+		if (fputwc(L'\n', fdWrite) != WEOF)
 			res = ErrorNone;
 
 	tf->lastError = res;
@@ -373,12 +388,12 @@ enum ErrorId tagfileApplyModifications(struct TagFileStruct *tf)
 
 	enum ErrorId res = ErrorOther;
 	FILE *fd = tagfileGetWriteFd(tf);
-	unsigned int pathLen = strlen(tf->filePath);
+	unsigned int pathLen = strlen(tf->filePathChar);
 	if (pathLen + 4 + 1 <= PATH_MAX)
 	{
 		char tmpName[PATH_MAX];
-		strcpy(tmpName, tf->filePath);
-		strcpy(&tmpName[pathLen], ".tmp");
+		strcpy(tmpName, tf->filePathChar);
+		strcpy(tmpName + pathLen, ".tmp");
 		FILE *fdTmp = fopen(&tmpName[0], "w");
 		if (fdTmp != NULL)
 		{
@@ -410,12 +425,12 @@ enum ErrorId tagfileApplyModifications(struct TagFileStruct *tf)
 				tagfileClose(tf);
 				res = ErrorOther;
 				char bakName[PATH_MAX];
-				strcpy(bakName, tf->filePath);
-				strcpy(&bakName[pathLen], ".bak");
-				if (rename(tf->filePath, bakName) == 0)
+				strcpy(bakName, tf->filePathChar);
+				strcpy(bakName + pathLen, ".bak");
+				if (rename(tf->filePathChar, bakName) == 0)
 				{
 					sync();
-					if (rename(tmpName, tf->filePath) == 0)
+					if (rename(tmpName, tf->filePathChar) == 0)
 					{
 						sync();
 						unlink(bakName);
@@ -439,7 +454,7 @@ enum ErrorId tagfileApplyModifications(struct TagFileStruct *tf)
 	return res;
 }
 
-struct ItemStruct *tagfileGetItemByFileName(struct TagFileStruct *tf, const char *fileName)
+struct ItemStruct *tagfileGetItemByFileName(struct TagFileStruct *tf, const wchar_t *fileName)
 {
 	struct ItemStruct *item;
 	enum TagFileMode mode = tf->mode;
@@ -462,37 +477,37 @@ struct ItemStruct *tagfileGetItemByFileName(struct TagFileStruct *tf, const char
 
 /******************************* Private ******************************/
 
-int tagfileScanItemHeader(const char *str, size_t *pSz, char **pHash)
+int tagfileScanItemHeader(const wchar_t *str, size_t *pSz, wchar_t **pHash)
 {
-	if (str[0] != '[')
+	if (str[0] != L'[')
 		return EXIT_FAILURE;
 
-	int len = strlen(str);
-	if (len < FILE_HASH_LEN + 4 || str[--len] != ']')
+	int len = wcslen(str);
+	if (len < FILE_HASH_LEN + 4 || str[--len] != L']')
 		return EXIT_FAILURE;
 
-	char *sep = strchr(str, ':');
+	wchar_t *sep = wcschr(str, L':');
 	if (sep == NULL || sep - str < 2)
 		return EXIT_FAILURE;
 
 	int c = 0;
-	const char *p = str + 1;
+	const wchar_t *p = str + 1;
 	do
 	{
-		if (isdigit(*p) == 0)
+		if (!iswdigit(*p))
 			return EXIT_FAILURE;
 		++c;
 	} while (++p != sep);
 
 	if (c > 20)
 		return EXIT_FAILURE;
-	if (strlen(sep + 1) != FILE_HASH_LEN + 1) // 40 + ']'
+	if (wcslen(sep + 1) != FILE_HASH_LEN + 1) // + ']'
 		return EXIT_FAILURE;
 
-	char buff[21];
-	strncpy(buff, str + 1, c);
-	buff[c] = '\0';
-	*pSz = (size_t)atoll(buff);
+	wchar_t buff[21];
+	wcsncpy(buff, str + 1, c);
+	buff[c] = L'\0';
+	*pSz = (size_t)wcstoll(buff, NULL, 10);
 
 	*pHash = sep + 1;
 
@@ -504,7 +519,7 @@ enum ErrorId tagfileWritingTail(struct TagFileStruct *tf)
 	FILE *fdRead = tagfileGetReadFd(tf);
 	if (!feof(fdRead))
 	{
-		const char *buff = tf->readBuffer;
+		const wchar_t *buff = tf->readBuffer.pointer;
 		do
 		{
 			if (tf->curLineNum != 0)
@@ -519,13 +534,22 @@ enum ErrorId tagfileWritingTail(struct TagFileStruct *tf)
 
 int tagfileItemOutput(FILE *fd, const struct ItemStruct *item)
 {
-	if (fprintf(fd, "[%zu:%s]\n", item->fileSize, item->hash) >= 0)
+	int res;
+	if (fd != stdout)
+		res = fwprintf(fd, L"[%zu:%S]\n", item->fileSize, item->hash);
+	else
+		res = fprintf(fd, "[%zu:%S]\n", item->fileSize, item->hash);
+	if (res >= 0)
 	{
 		unsigned int i = 0;
-		char *fName;
+		const wchar_t *fName;
 		while ((fName = itemGetFileName(item, i++)) != NULL)
 		{
-			if (fprintf(fd, "!FileName=%s\n", fName) < 0)
+			if (fd != stdout)
+				res = fwprintf(fd, L"!FileName=%S\n", fName);
+			else
+				res = fprintf(fd, "!FileName=%S\n", fName);
+			if (res < 0)
 			{
 				perror("tagfile");
 				return EXIT_FAILURE;
@@ -535,15 +559,19 @@ int tagfileItemOutput(FILE *fd, const struct ItemStruct *item)
 		if (cnt > 0)
 		{
 			unsigned int i;
-			char tempValueBuff[2048];
+			wchar_t tempValueBuff[2048];
 			for (i = 0; i < cnt; ++i)
 			{
-				if (itemPropertyValueToString(item, i, tempValueBuff, sizeof(tempValueBuff)) != EXIT_SUCCESS)
+				if (itemPropertyValueToString(item, i, tempValueBuff, sizeof(tempValueBuff) / sizeof(wchar_t)) != EXIT_SUCCESS)
 				{
-					fprintf(stderr, "Error: itemPropertyValueToString failed\n");
+					fputs("Error: itemPropertyValueToString failed\n", stderr);
 					return EXIT_FAILURE;
 				}
-				if (fprintf(fd, "%s=%s\n", itemPropertyGetName(item, i), tempValueBuff) < 0)
+				if (fd != stdout)
+					res = fwprintf(fd, L"%S=%S\n", itemPropertyGetName(item, i), tempValueBuff);
+				else
+					res = fprintf(fd, "%S=%S\n", itemPropertyGetName(item, i), tempValueBuff);
+				if (res < 0)
 				{
 					perror("tagfile");
 					return EXIT_FAILURE;
@@ -563,60 +591,64 @@ struct TagFileStruct *tagfileInitStruct(enum TagFileMode mode)
 	struct TagFileStruct *tf = malloc(sizeof(struct TagFileStruct));
 	if (tf != NULL)
 	{
-		tf->fd          = NULL;
-		tf->dirPath     = NULL;
-		tf->dirLen      = 0;
-		tf->filePath    = NULL;
-		tf->fileName    = NULL;
-		tf->filePath    = NULL;
-		tf->fileName    = NULL;
-		tf->mode        = mode;
-		tf->lastError   = ErrorNone;
-		tf->curLineNum  = 0;
-		tf->readBuffer  = NULL;
-		tf->curItemSize = 0;
-		tf->curItemHash = NULL;
-		tf->findFlag    = 0;
-		tf->fdModif     = NULL;
-		tf->fdInsert    = NULL;
+		tf->fd                 = NULL;
+		tf->dirPath            = NULL;
+		tf->dirPathChar        = NULL;
+		tf->dirLen             = 0;
+		tf->filePath           = NULL;
+		tf->filePathChar       = NULL;
+		tf->fileName           = NULL;
+		tf->filePath           = NULL;
+		tf->fileName           = NULL;
+		tf->mode               = mode;
+		tf->lastError          = ErrorNone;
+		tf->curLineNum         = 0;
+		tf->readBuffer.length  = 0;
+		tf->readBuffer.pointer = NULL;
+		tf->curItemSize        = 0;
+		tf->curItemHash        = NULL;
+		tf->findFlag           = 0;
+		tf->fdModif            = NULL;
+		tf->fdInsert           = NULL;
 	}
 	return tf;
 }
 
-enum ErrorId tagfileInitPath(struct TagFileStruct *tf, const char *dPath, const char *fName)
+enum ErrorId initPath(struct TagFileStruct *tf, const wchar_t *dPath, const wchar_t *fName)
 {
-	unsigned int dirLen = 0;
-	unsigned int slashLen = 0;
-	if (dPath != NULL && dPath[0] != '\0')
+	size_t dirLen = 0;
+	size_t slashLen = 0;
+	if (dPath != NULL && dPath[0] != L'\0')
 	{
-		dirLen = strlen(dPath);
-		if (dPath[dirLen-1] != '/')
+		dirLen = wcslen(dPath);
+		if (dPath[dirLen-1] != L'/')
 			++slashLen;
 	}
 
-	const char *fn = fName;
-	if (fn == NULL)
-		fn = tagFileName;
-	unsigned int fileLen = strlen(fn);
+	size_t fnameLen = tagFileNameLen;
+	if (fName != NULL)
+		fnameLen = wcslen(fName);
 
 	enum ErrorId res = ErrorOther;
-	if (dirLen + slashLen + fileLen < PATH_MAX)
+	if (dirLen + slashLen + fnameLen < PATH_MAX)
 	{
 		res = ErrorNone;
-		tf->dirPath = malloc(PATH_MAX);
+		tf->dirPath = malloc(PATH_MAX * sizeof(wchar_t));
 		if (tf->dirPath != NULL)
 		{
 			if (dirLen != 0)
 			{
-				strcpy(tf->dirPath, dPath);
+				wcscpy(tf->dirPath, dPath);
 				if (slashLen != 0)
 				{
-					tf->dirPath[dirLen++] = '/';
-					tf->dirPath[dirLen] = '\0';
+					tf->dirPath[dirLen++] = L'/';
+					tf->dirPath[dirLen]   = L'\0';
 				}
 			}
 			else
-				tf->dirPath[0] = '\0';
+			{
+				tf->dirPath[0] = L'\0';
+			}
 		}
 		else
 			res = ErrorInternal;
@@ -625,13 +657,16 @@ enum ErrorId tagfileInitPath(struct TagFileStruct *tf, const char *dPath, const 
 		if (res == ErrorNone)
 		{
 			res = ErrorInternal;
-			tf->filePath = malloc(PATH_MAX);
+			tf->filePath = malloc(PATH_MAX * sizeof(wchar_t));
 			if (tf->filePath != NULL)
 			{
 				if (dirLen != 0)
-					strcpy(tf->filePath, tf->dirPath);
+					wcscpy(tf->filePath, tf->dirPath);
 				tf->fileName = tf->filePath + dirLen;
-				strcpy(tf->fileName, fn);
+				if (fName != NULL)
+					wcscpy(tf->fileName, fName);
+				else
+					mbstowcs(tf->fileName, tagFileName, PATH_MAX - tf->dirLen);
 				res = ErrorNone;
 			}
 		}
@@ -640,14 +675,51 @@ enum ErrorId tagfileInitPath(struct TagFileStruct *tf, const char *dPath, const 
 	return res;
 }
 
-enum ErrorId tagfileInitReadBuffer(struct TagFileStruct *tf)
+static enum ErrorId updateCharPath(struct TagFileStruct *tf)
 {
-	if ((tf->readBuffer = malloc(READ_BUFFER_SIZE * sizeof(char))) == NULL)
+	enum ErrorId res = ErrorInternal;
+	if (tf->dirPathChar != NULL || (tf->dirPathChar = malloc(PATH_MAX * sizeof(char))) != NULL)
+	{
+		if (tf->filePathChar != NULL || (tf->filePathChar = malloc(PATH_MAX * sizeof(char))) != NULL)
+		{
+			res = ErrorOther;
+			size_t sz = wcstombs(tf->dirPathChar, tf->dirPath, PATH_MAX);
+			if (sz != (size_t) -1 && sz != PATH_MAX)
+			{
+				sz = wcstombs(tf->filePathChar, tf->filePath, PATH_MAX);
+				if (sz != (size_t) -1 && sz != PATH_MAX)
+					res = ErrorNone;
+			}
+		}
+	}
+	tf->lastError = res;
+	return res;
+}
+
+enum ErrorId tagfileAllocateReadBuffer(struct TagFileStruct *tf)
+{
+	size_t len = tf->readBuffer.length + READ_BUFFER_INCREASE;
+	if (len > READ_BUFFER_MAX_LENGTH)
+	{
+		tf->lastError = ErrorInvalidIndex;
+		return ErrorInvalidIndex;
+	}
+
+	wchar_t *newBuff;
+	if (tf->readBuffer.pointer == NULL)
+		newBuff = malloc(len * sizeof(wchar_t));
+	else
+		newBuff = realloc(tf->readBuffer.pointer, len * sizeof(wchar_t));
+	if (newBuff == NULL)
 	{
 		tf->lastError = ErrorInternal;
 		return ErrorInternal;
 	}
-	tf->readBuffer[0] = '\0';
+
+	tf->readBuffer.length = len;
+	if (tf->readBuffer.pointer == NULL)
+		newBuff[0] = L'\0';
+	tf->readBuffer.pointer = newBuff;
 	tf->lastError = ErrorNone;
 	return ErrorNone;
 }
@@ -657,16 +729,16 @@ struct TagFileStruct *tagfileCloneForSubdir(const struct TagFileStruct *tf, cons
 	struct TagFileStruct *tfRes = tagfileInitStruct(tf->mode);
 	if (tfRes != NULL)
 	{
-		if (tagfileInitPath(tfRes, tf->dirPath, tf->fileName) != ErrorNone)
+		if (initPath(tfRes, tf->dirPath, tf->fileName) != ErrorNone)
 		{
 			tagfileFree(tfRes);
 			return NULL;
 		}
 
-		unsigned int dirLen   = tfRes->dirLen;
-		unsigned int fileLen  = strlen(tfRes->fileName);
-		unsigned int subLen   = strlen(subdir);
-		unsigned int slashLen = 0;
+		size_t dirLen   = tfRes->dirLen;
+		size_t fileLen  = wcslen(tfRes->fileName);
+		size_t subLen   = strlen(subdir);
+		size_t slashLen = 0;
 		if (subdir[subLen-1] != '/')
 			++slashLen;
 		if (dirLen + subLen + slashLen + fileLen >= PATH_MAX)
@@ -675,18 +747,30 @@ struct TagFileStruct *tagfileCloneForSubdir(const struct TagFileStruct *tf, cons
 			return NULL;
 		}
 
-		strcpy(tfRes->dirPath + dirLen, subdir);
+		size_t buf_sz = PATH_MAX - dirLen;
+		subLen = mbstowcs(tfRes->dirPath + dirLen, subdir, buf_sz);
+		if (subLen == (size_t) -1 || subLen == buf_sz)
+		{
+			tagfileFree(tfRes);
+			return NULL;
+		}
 		dirLen += subLen;
 		if (slashLen != 0)
 		{
-			tfRes->dirPath[dirLen++] = '/';
-			tfRes->dirPath[dirLen]   = '\0';
+			tfRes->dirPath[dirLen++] = L'/';
+			tfRes->dirPath[dirLen]   = L'\0';
 		}
 		tfRes->dirLen = dirLen;
 
-		strcpy(tfRes->filePath, tfRes->dirPath);
+		wcscpy(tfRes->filePath, tfRes->dirPath);
 		tfRes->fileName = tfRes->filePath + dirLen;
-		strcpy(tfRes->fileName, tf->fileName);
+		wcscpy(tfRes->fileName, tf->fileName);
+
+		if (updateCharPath(tfRes) != ErrorNone)
+		{
+			tagfileFree(tfRes);
+			return NULL;
+		}
 
 		if (tagfileOpen(tfRes) == ErrorNone)
 			tagfileReadHeader(tfRes);
@@ -698,7 +782,7 @@ enum ErrorId tagfileOpen(struct TagFileStruct *tf)
 {
 	tf->curLineNum = 0;
 
-	tf->fd = fopen(tf->filePath, "r");
+	tf->fd = fopen(tf->filePathChar, "r");
 	if (tf->fd == NULL)
 	{
 		if (errno == ENOENT)
@@ -712,7 +796,7 @@ enum ErrorId tagfileOpen(struct TagFileStruct *tf)
 		return ErrorOther;
 	}
 
-	if (tagfileInitReadBuffer(tf) != ErrorNone)
+	if (tf->readBuffer.pointer == NULL && tagfileAllocateReadBuffer(tf) != ErrorNone)
 	{
 		fclose(tf->fd);
 		tf->fd = NULL;
@@ -732,9 +816,9 @@ enum ErrorId tagfileReadHeader(struct TagFileStruct *tf)
 {
 	if (tagfileReadString(tf) == ErrorNone)
 	{
-		if (strcmp(tf->readBuffer, "!tags-info") != 0)
+		if (wcscmp(tf->readBuffer.pointer, L"!tags-info") != 0)
 		{
-			fprintf(stderr, "Error: file %s, line %i - invalid format\n", tf->filePath, tf->curLineNum);
+			fprintf(stderr, "Error: file %S, line %i - invalid format\n", tf->filePath, tf->curLineNum);
 			tf->lastError = ErrorInvalidIndex;
 		}
 	}
@@ -748,10 +832,11 @@ void tagfileClose(struct TagFileStruct *tf)
 		fclose(tf->fd);
 		tf->fd = NULL;
 	}
-	if (tf->readBuffer != NULL)
+	if (tf->readBuffer.pointer != NULL)
 	{
-		free(tf->readBuffer);
-		tf->readBuffer = NULL;
+		free(tf->readBuffer.pointer);
+		tf->readBuffer.pointer = NULL;
+		tf->readBuffer.length  = 0;
 	}
 }
 
@@ -762,13 +847,27 @@ enum ErrorId tagfileReadString(struct TagFileStruct *tf)
 	tf->curItemSize = 0;
 	tf->curItemHash = NULL;
 	tf->findFlag    = 0;
-	char *buff      = tf->readBuffer;
-	if (fgets(buff, READ_BUFFER_SIZE, fdRead) != NULL)
+	wchar_t *buff   = tf->readBuffer.pointer;
+	size_t bufLen   = tf->readBuffer.length;
+	size_t i = 0;
+	while (fgetws(&buff[i], bufLen - i, fdRead) != NULL)
 	{
-		unsigned int len = strlen(buff);
-		if (len != 0 && buff[len-1] == '\n')
-			buff[len-1] = '\0';
-
+		size_t strLen = wcslen(&buff[i]);
+		if (strLen != 0)
+		{
+			i += strLen;
+			if (buff[i-1] != L'\n')
+			{
+				if (bufLen - i <= 1)
+				{
+					if (tagfileAllocateReadBuffer(tf) != ErrorNone)
+						return tf->lastError;
+					bufLen = tf->readBuffer.length;
+				}
+				continue;
+			}
+			buff[i-1] = L'\0';
+		}
 		tf->lastError = ErrorNone;
 		return ErrorNone;
 	}
@@ -782,11 +881,11 @@ enum ErrorId tagfileReadString(struct TagFileStruct *tf)
 	return res;
 }
 
-enum ErrorId tagfileWriteString(struct TagFileStruct *tf, const char *str)
+enum ErrorId tagfileWriteString(struct TagFileStruct *tf, const wchar_t *str)
 {
 	enum ErrorId res = ErrorNone;
 	FILE *fdWrite = tagfileGetWriteFd(tf);
-	if (fputs(str, fdWrite) == EOF || fputs("\n", fdWrite) == EOF)
+	if (fputws(str, fdWrite) == -1 || fputwc(L'\n', fdWrite) == WEOF)
 	{
 		res = ErrorOther;
 		perror("tmpfile");
@@ -797,43 +896,43 @@ enum ErrorId tagfileWriteString(struct TagFileStruct *tf, const char *str)
 
 enum ErrorId tagfileItemBodyLoad(struct TagFileStruct *tf, struct ItemStruct *item)
 {
-	char *buff = tf->readBuffer;
+	wchar_t *buff = tf->readBuffer.pointer;
 	while (tagfileReadString(tf) == ErrorNone)
 	{
-		if (buff[0] == '[')
+		if (buff[0] == L'[')
 		{
 			tf->lastError = ErrorNone;
 			return ErrorNone;
 		}
 
-		if (buff[0] != '\0' && buff[0] != '#')
+		if (buff[0] != L'\0' && buff[0] != L'#')
 		{
 
-			char *valPos = strchr(buff, '=');
+			wchar_t *valPos = wcschr(buff, L'=');
 			if (valPos == NULL || valPos == buff)
 			{
-				fprintf(stderr, "Error: file %s, line %i - invalid format\n", tf->filePath, tf->curLineNum);
+				fprintf(stderr, "Error: file %S, line %i - invalid format\n", tf->filePath, tf->curLineNum);
 				tf->lastError = ErrorInvalidIndex;
 				return ErrorInvalidIndex;
 			}
 
-			*valPos++ = '\0';
-			char *namePos = buff;
-			if (namePos[0] == '!')
+			*valPos++ = L'\0';
+			wchar_t *namePos = buff;
+			if (namePos[0] == L'!')
 			{
 				++namePos;
-				if (strcmp(namePos, "FileName") == 0 && strlen(valPos) != 0)
+				if (wcscmp(namePos, L"FileName") == 0 && wcslen(valPos) != 0)
 				{
 					if (itemAddFileName(item, valPos) != EXIT_SUCCESS)
 					{
-						fprintf(stderr, "Error: tagsItemAddFileName failed\n");
+						fputs("Error: tagsItemAddFileName failed\n", stderr);
 						tf->lastError = ErrorInternal;
 						return ErrorInternal;
 					}
 				}
 				else
 				{
-					fprintf(stderr, "Error: file %s, line %i - invalid format\n", tf->filePath, tf->curLineNum);
+					fprintf(stderr, "Error: file %S, line %i - invalid format\n", tf->filePath, tf->curLineNum);
 					tf->lastError = ErrorInvalidIndex;
 					return ErrorInvalidIndex;
 				}
@@ -843,7 +942,7 @@ enum ErrorId tagfileItemBodyLoad(struct TagFileStruct *tf, struct ItemStruct *it
 				if (itemSetProperty(item, namePos, valPos) != EXIT_SUCCESS)
 				{
 					tf->lastError = ErrorInternal;
-					fprintf(stderr, "ItemSetProperty error\n");
+					fputs("Error: ItemSetProperty failed\n", stderr);
 					return EXIT_FAILURE;
 				}
 			}

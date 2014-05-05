@@ -21,6 +21,8 @@
 #ifndef WHERE_H
 #define WHERE_H
 
+#include <wchar.h>
+
 #include "property.h"
 #include "item.h"
 
@@ -31,7 +33,7 @@ struct WhereStruct
 	struct PropertyStruct **conditions;
 };
 
-struct WhereStruct *whereInit(const char *whereStr);
+struct WhereStruct *whereInit(const wchar_t *whereStr);
 void whereFree(struct WhereStruct *whr);
 int whereIsFiltered(const struct WhereStruct *whr, struct ItemStruct *item);
 

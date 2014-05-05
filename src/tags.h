@@ -21,11 +21,13 @@
 #ifndef TAGS_H
 #define TAGS_H
 
+#include <wchar.h>
+
 int tagsCreateIndex(void);
 int tagsStatus(char **filesArray, unsigned int filesCount);
-int tagsList(const char *fieldsStr, const char *whrPropStr);
+int tagsList(const wchar_t *fieldsStr, const wchar_t *whrPropStr);
 int tagsShowProps(void);
-int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char *delPropStr, char *setPropStr, const char *whrPropStr);
+int tagsUpdateFileInfo(char **filesArray, int filesCount, wchar_t *addPropStr, wchar_t *delPropStr, wchar_t *setPropStr, const wchar_t *whrPropStr);
 int moveFile(char **filesArray);
 
 #endif // TAGS_H

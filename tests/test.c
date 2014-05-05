@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <wchar.h>
 
 #include "../src/property.h"
 #include "../src/item.h"
@@ -58,7 +59,7 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propInit";
-		struct PropertyStruct *prop = propInit("!testName_123", "testVal_1");
+		struct PropertyStruct *prop = propInit(L"!testName_123", L"testVal_1");
 		if (prop != NULL)
 		{
 			++errors_cnt;
@@ -66,7 +67,7 @@ void testProp()
 			propFree(prop);
 		}
 
-		prop = propInit("testName_123", NULL);
+		prop = propInit(L"testName_123", NULL);
 		if (prop == NULL || prop->valCount != 1)
 		{
 			++errors_cnt;
@@ -77,7 +78,7 @@ void testProp()
 
 		++tests_cnt;
 		testNm = "propInit";
-		prop = propInit("testName_123", "");
+		prop = propInit(L"testName_123", L"");
 		if (prop == NULL || prop->valCount != 1)
 		{
 			++errors_cnt;
@@ -89,7 +90,7 @@ void testProp()
 
 	++tests_cnt;
 	testNm = "propInit_Value";
-	struct PropertyStruct *propEnum = propInit("testName_123", "testVal_1,testVal_3,testVal_2");
+	struct PropertyStruct *propEnum = propInit(L"testName_123", L"testVal_1,testVal_3,testVal_2");
 	if (propEnum == NULL)
 	{
 		++errors_cnt;
@@ -138,7 +139,7 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propIsSubval";
-		struct SubvalHandle *subvalEnum = propIsSubval(propEnum, "testVal_3");
+		struct SubvalHandle *subvalEnum = propIsSubval(propEnum, L"testVal_3");
 		if (subvalEnum == NULL)
 		{
 			++errors_cnt;
@@ -147,8 +148,8 @@ void testProp()
 
 		++tests_cnt;
 		testNm = "subvalString";
-		const char *str = subvalString(subvalEnum);
-		if (str == NULL || strcmp(str, "testVal_3") != 0)
+		const wchar_t *str = subvalString(subvalEnum);
+		if (str == NULL || wcscmp(str, L"testVal_3") != 0)
 		{
 			++errors_cnt;
 			printFailed("Enum");
@@ -158,7 +159,7 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propAddSubval";
-		struct PropertyStruct *prop = propAddSubval(propEnum, "testVal_4");
+		struct PropertyStruct *prop = propAddSubval(propEnum, L"testVal_4");
 		if (prop == NULL || prop->valCount != 4)
 		{
 			++errors_cnt;
@@ -167,7 +168,7 @@ void testProp()
 		else
 		{
 			propEnum = prop;
-			prop = propAddSubval(propEnum, "");
+			prop = propAddSubval(propEnum, L"");
 			if (prop == NULL || prop->valCount != 4)
 			{
 				++errors_cnt;
@@ -176,7 +177,7 @@ void testProp()
 			else
 			{
 				propEnum = prop;
-				prop = propAddSubval(propEnum, "  ");
+				prop = propAddSubval(propEnum, L"  ");
 				if (prop == NULL || prop->valCount != 4)
 				{
 					++errors_cnt;
@@ -185,8 +186,8 @@ void testProp()
 				else
 				{
 					propEnum = prop;
-					prop = propAddSubval(propEnum, "  _ whitespaces _   ");
-					if (prop == NULL || prop->valCount != 5 || propIsSubval(prop, "_ whitespaces _") == NULL)
+					prop = propAddSubval(propEnum, L"  _ whitespaces _   ");
+					if (prop == NULL || prop->valCount != 5 || propIsSubval(prop, L"_ whitespaces _") == NULL)
 					{
 						++errors_cnt;
 						printFailed("wspaces2 to Enum");
@@ -201,13 +202,13 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propAddSubvalues";
-		int res = propAddSubvalues(&propEnum, "testVal_5,testVal_6");
+		int res = propAddSubvalues(&propEnum, L"testVal_5,testVal_6");
 		if (res != EXIT_SUCCESS || propEnum->valCount != 7)
 		{
 			++errors_cnt;
 			printFailed("to Enum");
 		}
-		res = propAddSubvalues(&propEnum, "testVal_2");
+		res = propAddSubvalues(&propEnum, L"testVal_2");
 		if (res != EXIT_SUCCESS || propEnum->valCount != 7)
 		{
 			++errors_cnt;
@@ -218,8 +219,8 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propDelSubvalues";
-		int res = propDelSubvalues(&propEnum, "testVal_4,testVal_6,testVal_5,testVal_10,_ whitespaces _");
-		if (res != EXIT_SUCCESS || propEnum->valCount != 3 || strcmp(propGetSubval(propEnum, 0, None), "testVal_1") != 0 || strcmp(propGetSubval(propEnum, 1, None), "testVal_3") != 0 || strcmp(propGetSubval(propEnum, 2, None), "testVal_2") != 0)
+		int res = propDelSubvalues(&propEnum, L"testVal_4,testVal_6,testVal_5,testVal_10,_ whitespaces _");
+		if (res != EXIT_SUCCESS || propEnum->valCount != 3 || wcscmp(propGetSubval(propEnum, 0, None), L"testVal_1") != 0 || wcscmp(propGetSubval(propEnum, 1, None), L"testVal_3") != 0 || wcscmp(propGetSubval(propEnum, 2, None), L"testVal_2") != 0)
 		{
 			++errors_cnt;
 			printFailed("from Enum");
@@ -229,26 +230,26 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propGetSubval";
-		const char *val = propGetSubval(propEnum, 3, None);
+		const wchar_t *val = propGetSubval(propEnum, 3, None);
 		if (val != NULL)
 		{
 			++errors_cnt;
 			printFailed("outOfRange Enum");
 		}
 		val = propGetSubval(propEnum, 2, None);
-		if (val == NULL || strcmp(val, "testVal_2") != 0)
+		if (val == NULL || wcscmp(val, L"testVal_2") != 0)
 		{
 			++errors_cnt;
 			printFailed("no sort");
 		}
 		val = propGetSubval(propEnum, 2, ByValue);
-		if (val == NULL || strcmp(val, "testVal_3") != 0)
+		if (val == NULL || wcscmp(val, L"testVal_3") != 0)
 		{
 			++errors_cnt;
 			printFailed("by value");
 		}
 		val = propGetSubval(propEnum, 2, ByUser);
-		if (val == NULL || strcmp(val, "testVal_1") != 0)
+		if (val == NULL || wcscmp(val, L"testVal_1") != 0)
 		{
 			++errors_cnt;
 			printFailed("by user");
@@ -258,14 +259,14 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propIsEmpty";
-		struct PropertyStruct *prop1 = propInit("testName_10", "testVal_10");
+		struct PropertyStruct *prop1 = propInit(L"testName_10", L"testVal_10");
 		if (propIsEmpty(prop1))
 		{
 			++errors_cnt;
 			printFailed("not empty");
 		}
 		propFree(prop1);
-		prop1 = propInit("testName_10", "");
+		prop1 = propInit(L"testName_10", L"");
 		if (!propIsEmpty(prop1))
 		{
 			++errors_cnt;
@@ -277,38 +278,38 @@ void testProp()
 	{
 		++tests_cnt;
 		testNm = "propIsEqualValue";
-		struct PropertyStruct *prop1 = propInit("testName_10", "");
-		struct PropertyStruct *prop2 = propInit("testName_20", "");
+		struct PropertyStruct *prop1 = propInit(L"testName_10", L"");
+		struct PropertyStruct *prop2 = propInit(L"testName_20", L"");
 		if (!propIsEqualValue(prop1, prop2))
 		{
 			++errors_cnt;
 			printFailed("empty");
 		}
 		propFree(prop1);
-		prop1 = propInit("testName_10", "testVal_10");
+		prop1 = propInit(L"testName_10", L"testVal_10");
 		if (propIsEqualValue(prop1, prop2))
 		{
 			++errors_cnt;
 			printFailed("test e=!e");
 		}
 		propFree(prop1);
-		prop1 = propInit("testName_10", "testVal_10,testVal_11");
+		prop1 = propInit(L"testName_10", L"testVal_10,testVal_11");
 		propFree(prop2);
-		prop2 = propInit("testName_20", "testVal_10");
+		prop2 = propInit(L"testName_20", L"testVal_10");
 		if (propIsEqualValue(prop1, prop2))
 		{
 			++errors_cnt;
 			printFailed("test 2=1");
 		}
 		propFree(prop2);
-		prop2 = propInit("testName_20", "testVal_10,testVal_12");
+		prop2 = propInit(L"testName_20", L"testVal_10,testVal_12");
 		if (propIsEqualValue(prop1, prop2))
 		{
 			++errors_cnt;
 			printFailed("test 11=12");
 		}
 		propFree(prop2);
-		prop2 = propInit("testName_20", "testVal_11,testVal_10");
+		prop2 = propInit(L"testName_20", L"testVal_11,testVal_10");
 		if (!propIsEqualValue(prop1, prop2))
 		{
 			++errors_cnt;
@@ -325,7 +326,7 @@ void testItem()
 {
 	++tests_cnt;
 	testNm = "itemInit";
-	struct ItemStruct *item = itemInit("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", 4);
+	struct ItemStruct *item = itemInit(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3");
 	if (item == NULL)
 	{
 		++errors_cnt;
@@ -337,7 +338,7 @@ void testItem()
 		++errors_cnt;
 		printFailed("fileSize");
 	}
-	if (strcmp((char *)item->hash, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3") != 0)
+	if (wcscmp(item->hash, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3") != 0)
 	{
 		++errors_cnt;
 		printFailed("fileHash");
@@ -376,7 +377,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemInitFromRawData";
-	item = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", "testName_10=testVal_10,testVal_11,@testName_30=", "testName_1=testVal_1,testVal_3,, ,  ,testVal_2@testName_40=@testName_20=testVal_20,testVal_21,");
+	item = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", L"testName_10=testVal_10,testVal_11,@testName_30=", L"testName_1=testVal_1,testVal_3,, ,  ,testVal_2@testName_40=@testName_20=testVal_20,testVal_21,");
 	if (item == NULL)
 	{
 		++errors_cnt;
@@ -402,12 +403,12 @@ void testItem()
 			++errors_cnt;
 			printFailed("out of range");
 		}
-		if (strcmp(itemPropertyGetName(item, 0), "testName_1") != 0)
+		if (wcscmp(itemPropertyGetName(item, 0), L"testName_1") != 0)
 		{
 			++errors_cnt;
 			printFailed("first prop");
 		}
-		if (strcmp(itemPropertyGetName(item, 4), "testName_30") != 0)
+		if (wcscmp(itemPropertyGetName(item, 4), L"testName_30") != 0)
 		{
 			++errors_cnt;
 			printFailed("last prop");
@@ -431,7 +432,7 @@ void testItem()
 		testNm = "checkValues";
 		struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 0);
 		struct PropertyStruct *prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_1") != 0)
+		if (wcscmp(propGetName(prop), L"testName_1") != 0)
 		{
 			++errors_cnt;
 			printFailed("testName_1 name");
@@ -445,7 +446,7 @@ void testItem()
 			}
 			else
 			{
-				if (strcmp(propGetSubval(prop, 0, None), "testVal_1") != 0 || strcmp(propGetSubval(prop, 1, None), "testVal_3") != 0 || strcmp(propGetSubval(prop, 2, None), "testVal_2") != 0)
+				if (wcscmp(propGetSubval(prop, 0, None), L"testVal_1") != 0 || wcscmp(propGetSubval(prop, 1, None), L"testVal_3") != 0 || wcscmp(propGetSubval(prop, 2, None), L"testVal_2") != 0)
 				{
 					++errors_cnt;
 					printFailed("testName_1 value");
@@ -454,7 +455,7 @@ void testItem()
 		}
 		pProp = itemGetPropArrayAddrByNum(item, 1);
 		prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_40") != 0)
+		if (wcscmp(propGetName(prop), L"testName_40") != 0)
 		{
 			++errors_cnt;
 			printFailed("testName_40 name");
@@ -468,7 +469,7 @@ void testItem()
 			}
 			else
 			{
-				if (strlen(propGetSubval(prop, 0, None)) != 0)
+				if (wcslen(propGetSubval(prop, 0, None)) != 0)
 				{
 					++errors_cnt;
 					printFailed("testName_40 value");
@@ -477,7 +478,7 @@ void testItem()
 		}
 		pProp = itemGetPropArrayAddrByNum(item, 2);
 		prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_20") != 0)
+		if (wcscmp(propGetName(prop), L"testName_20") != 0)
 		{
 			++errors_cnt;
 			printFailed("testName_20 name");
@@ -491,7 +492,7 @@ void testItem()
 			}
 			else
 			{
-				if (strcmp(propGetSubval(prop, 0, None), "testVal_20") != 0 || strcmp(propGetSubval(prop, 1, None), "testVal_21") != 0)
+				if (wcscmp(propGetSubval(prop, 0, None), L"testVal_20") != 0 || wcscmp(propGetSubval(prop, 1, None), L"testVal_21") != 0)
 				{
 					++errors_cnt;
 					printFailed("testName_20 value");
@@ -500,7 +501,7 @@ void testItem()
 		}
 		pProp = itemGetPropArrayAddrByNum(item, 3);
 		prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_10") != 0)
+		if (wcscmp(propGetName(prop), L"testName_10") != 0)
 		{
 			++errors_cnt;
 			printFailed("testName_10 name");
@@ -514,7 +515,7 @@ void testItem()
 			}
 			else
 			{
-				if (strcmp(propGetSubval(prop, 0, None), "testVal_10") != 0 || strcmp(propGetSubval(prop, 1, None), "testVal_11") != 0)
+				if (wcscmp(propGetSubval(prop, 0, None), L"testVal_10") != 0 || wcscmp(propGetSubval(prop, 1, None), L"testVal_11") != 0)
 				{
 					++errors_cnt;
 					printFailed("testName_10 value");
@@ -523,7 +524,7 @@ void testItem()
 		}
 		pProp = itemGetPropArrayAddrByNum(item, 4);
 		prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_30") != 0)
+		if (wcscmp(propGetName(prop), L"testName_30") != 0)
 		{
 			++errors_cnt;
 			printFailed("testName_30 name");
@@ -537,7 +538,7 @@ void testItem()
 			}
 			else
 			{
-				if (strlen(propGetSubval(prop, 0, None)) != 0)
+				if (wcslen(propGetSubval(prop, 0, None)) != 0)
 				{
 					++errors_cnt;
 					printFailed("testName_30 value");
@@ -548,12 +549,12 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemIsFileName";
-	if (itemIsFileName(item, "testfile2") != 0)
+	if (itemIsFileName(item, L"testfile2") != 0)
 	{
 		++errors_cnt;
 		printFailed("testfile2");
 	}
-	if (itemIsFileName(item, "testfile1") == 0)
+	if (itemIsFileName(item, L"testfile1") == 0)
 	{
 		++errors_cnt;
 		printFailed("testfile1");
@@ -561,7 +562,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemAddFileName";
-	if (itemAddFileName(item, "testfile2") != EXIT_SUCCESS)
+	if (itemAddFileName(item, L"testfile2") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("testfile2");
@@ -569,12 +570,12 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemIsFileName2";
-	if (itemIsFileName(item, "testfile1") == 0)
+	if (itemIsFileName(item, L"testfile1") == 0)
 	{
 		++errors_cnt;
 		printFailed("testfile1");
 	}
-	if (itemIsFileName(item, "testfile2") == 0)
+	if (itemIsFileName(item, L"testfile2") == 0)
 	{
 		++errors_cnt;
 		printFailed("testfile2");
@@ -582,12 +583,12 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemGetFileName";
-	if (strcmp(itemGetFileName(item, 0), "testfile1") != 0)
+	if (wcscmp(itemGetFileName(item, 0), L"testfile1") != 0)
 	{
 		++errors_cnt;
 		printFailed("testfile1");
 	}
-	if (strcmp(itemGetFileName(item, 1), "testfile2") != 0)
+	if (wcscmp(itemGetFileName(item, 1), L"testfile2") != 0)
 	{
 		++errors_cnt;
 		printFailed("testfile2");
@@ -595,13 +596,13 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemRemoveFileName";
-	itemRemoveFileName(item, "testfile1");
+	itemRemoveFileName(item, L"testfile1");
 	if (item->fileNameCount != 1)
 	{
 		++errors_cnt;
 		printFailed("fileNameCount");
 	}
-	if (!itemIsFileName(item, "testfile2"))
+	if (!itemIsFileName(item, L"testfile2"))
 	{
 		++errors_cnt;
 		printFailed("fileName");
@@ -631,7 +632,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemSetProperty1";
-	if (itemSetProperty(item, "testName_60", NULL) != EXIT_SUCCESS)
+	if (itemSetProperty(item, L"testName_60", NULL) != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("init");
@@ -640,7 +641,7 @@ void testItem()
 	{
 		struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 5);
 		struct PropertyStruct *prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_60") != 0)
+		if (wcscmp(propGetName(prop), L"testName_60") != 0)
 		{
 			++errors_cnt;
 			printFailed("name");
@@ -654,7 +655,7 @@ void testItem()
 			}
 			else
 			{
-				if (strlen(propGetSubval(prop, 0, None)) != 0)
+				if (wcslen(propGetSubval(prop, 0, None)) != 0)
 				{
 					++errors_cnt;
 					printFailed("value");
@@ -665,7 +666,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemSetProperty2";
-	if (itemSetProperty(item, "testName_60", "testVal_1,,testVal_2, ,testVal_3,") != EXIT_SUCCESS)
+	if (itemSetProperty(item, L"testName_60", L"testVal_1,,testVal_2, ,testVal_3,") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("init");
@@ -674,7 +675,7 @@ void testItem()
 	{
 		struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 5);
 		struct PropertyStruct *prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_60") != 0)
+		if (wcscmp(propGetName(prop), L"testName_60") != 0)
 		{
 			++errors_cnt;
 			printFailed("name");
@@ -691,7 +692,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemSetProperty3";
-	if (itemSetProperty(item, "testName_60", "") != EXIT_SUCCESS)
+	if (itemSetProperty(item, L"testName_60", L"") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("init");
@@ -700,7 +701,7 @@ void testItem()
 	{
 		struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 5);
 		struct PropertyStruct *prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_60") != 0)
+		if (wcscmp(propGetName(prop), L"testName_60") != 0)
 		{
 			++errors_cnt;
 			printFailed("name");
@@ -714,7 +715,7 @@ void testItem()
 			}
 			else
 			{
-				if (strlen(propGetSubval(prop, 0, None)) != 0)
+				if (wcslen(propGetSubval(prop, 0, None)) != 0)
 				{
 					++errors_cnt;
 					printFailed("value");
@@ -725,7 +726,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemSetProperty4";
-	if (itemSetProperty(item, "testName_60", "   ") != EXIT_SUCCESS)
+	if (itemSetProperty(item, L"testName_60", L"   ") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("init");
@@ -734,7 +735,7 @@ void testItem()
 	{
 		struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 5);
 		struct PropertyStruct *prop = *pProp;
-		if (strcmp(propGetName(prop), "testName_60") != 0)
+		if (wcscmp(propGetName(prop), L"testName_60") != 0)
 		{
 			++errors_cnt;
 			printFailed("name");
@@ -748,7 +749,7 @@ void testItem()
 			}
 			else
 			{
-				if (strlen(propGetSubval(prop, 0, None)) != 0)
+				if (wcslen(propGetSubval(prop, 0, None)) != 0)
 				{
 					++errors_cnt;
 					printFailed("value");
@@ -759,7 +760,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemAddPropertiesRaw";
-	if (itemAddPropertiesRaw(item, "testName_50=@testName_70=testVal_71,  ,testVal_72,testVal_71, testVal_72 , ,@testName_1=testVal_1,testVal_9") != EXIT_SUCCESS)
+	if (itemAddPropertiesRaw(item, L"testName_50=@testName_70=testVal_71,  ,testVal_72,testVal_71, testVal_72 , ,@testName_1=testVal_1,testVal_9") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("");
@@ -780,14 +781,14 @@ void testItem()
 				++errors_cnt;
 				printFailed("valCount 1");
 			}
-			if (strcmp(propGetSubval(prop, 3, None), "testVal_9") != 0)
+			if (wcscmp(propGetSubval(prop, 3, None), L"testVal_9") != 0)
 			{
 				++errors_cnt;
 				printFailed("testVal_9");
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 6);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_50") != 0)
+			if (wcscmp(propGetName(prop), L"testName_50") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 50");
@@ -799,7 +800,7 @@ void testItem()
 					++errors_cnt;
 					printFailed("valCount 50");
 				}
-				else if (strlen(propGetSubval(prop, 0, None)) != 0)
+				else if (wcslen(propGetSubval(prop, 0, None)) != 0)
 				{
 					++errors_cnt;
 					printFailed("subval 50");
@@ -807,7 +808,7 @@ void testItem()
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 7);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_70") != 0)
+			if (wcscmp(propGetName(prop), L"testName_70") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 70");
@@ -819,7 +820,7 @@ void testItem()
 					++errors_cnt;
 					printFailed("valCount 70");
 				}
-				else if (strcmp(propGetSubval(prop, 1, None), "testVal_72") != 0)
+				else if (wcscmp(propGetSubval(prop, 1, None), L"testVal_72") != 0)
 				{
 					++errors_cnt;
 					printFailed("subval 70");
@@ -830,7 +831,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemSetPropertiesRaw";
-	if (itemSetPropertiesRaw(item, "testName_50=testVal_51,  ,testVal_52,testVal_51, testVal_52 , ,@testName_80=@testName_70= ") != EXIT_SUCCESS)
+	if (itemSetPropertiesRaw(item, L"testName_50=testVal_51,  ,testVal_52,testVal_51, testVal_52 , ,@testName_80=@testName_70= ") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("");
@@ -846,7 +847,7 @@ void testItem()
 		{
 			struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 6);
 			struct PropertyStruct *prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_50") != 0)
+			if (wcscmp(propGetName(prop), L"testName_50") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 50");
@@ -856,14 +857,14 @@ void testItem()
 				++errors_cnt;
 				printFailed("valCount 50");
 			}
-			else if (strcmp(propGetSubval(prop, 1, None), "testVal_52") != 0)
+			else if (wcscmp(propGetSubval(prop, 1, None), L"testVal_52") != 0)
 			{
 				++errors_cnt;
 				printFailed("subval 50");
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 7);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_70") != 0)
+			if (wcscmp(propGetName(prop), L"testName_70") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 70");
@@ -873,14 +874,14 @@ void testItem()
 				++errors_cnt;
 				printFailed("valCount 70");
 			}
-			else if (strlen(propGetSubval(prop, 0, None)) != 0)
+			else if (wcslen(propGetSubval(prop, 0, None)) != 0)
 			{
 				++errors_cnt;
 				printFailed("subval 70");
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 8);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_80") != 0)
+			if (wcscmp(propGetName(prop), L"testName_80") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 80");
@@ -890,7 +891,7 @@ void testItem()
 				++errors_cnt;
 				printFailed("valCount 80");
 			}
-			else if (strlen(propGetSubval(prop, 0, None)) != 0)
+			else if (wcslen(propGetSubval(prop, 0, None)) != 0)
 			{
 				++errors_cnt;
 				printFailed("subval 80");
@@ -901,8 +902,8 @@ void testItem()
 	{
 		++tests_cnt;
 		testNm = "itemMerge";
-		struct ItemStruct *item1 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=");
-		struct ItemStruct *item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile2", NULL, "testName_10=testVal_10,testVal_12@testName_20=testVal_20,testVal_21@testName_30=@testName_40=testVal_40");
+		struct ItemStruct *item1 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_10,testVal_11@testName_20=");
+		struct ItemStruct *item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile2", NULL, L"testName_10=testVal_10,testVal_12@testName_20=testVal_20,testVal_21@testName_30=@testName_40=testVal_40");
 		if (itemMerge(item1, item2) != EXIT_SUCCESS)
 		{
 			itemFree(item2);
@@ -918,12 +919,12 @@ void testItem()
 			}
 			else
 			{
-				if (strcmp(itemGetFileName(item1, 0), "testfile1") != 0)
+				if (wcscmp(itemGetFileName(item1, 0), L"testfile1") != 0)
 				{
 					++errors_cnt;
 					printFailed("fileName 1");
 				}
-				if (strcmp(itemGetFileName(item1, 1), "testfile2") != 0)
+				if (wcscmp(itemGetFileName(item1, 1), L"testfile2") != 0)
 				{
 					++errors_cnt;
 					printFailed("fileName 2");
@@ -938,7 +939,7 @@ void testItem()
 			{
 				struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item1, 0);
 				struct PropertyStruct *prop = *pProp;
-				if (strcmp(propGetName(prop), "testName_10") != 0)
+				if (wcscmp(propGetName(prop), L"testName_10") != 0)
 				{
 					++errors_cnt;
 					printFailed("name 10");
@@ -950,7 +951,7 @@ void testItem()
 				}
 				pProp = itemGetPropArrayAddrByNum(item1, 1);
 				prop = *pProp;
-				if (strcmp(propGetName(prop), "testName_20") != 0)
+				if (wcscmp(propGetName(prop), L"testName_20") != 0)
 				{
 					++errors_cnt;
 					printFailed("name 20");
@@ -962,7 +963,7 @@ void testItem()
 				}
 				pProp = itemGetPropArrayAddrByNum(item1, 2);
 				prop = *pProp;
-				if (strcmp(propGetName(prop), "testName_30") != 0)
+				if (wcscmp(propGetName(prop), L"testName_30") != 0)
 				{
 					++errors_cnt;
 					printFailed("name 30");
@@ -974,7 +975,7 @@ void testItem()
 				}
 				pProp = itemGetPropArrayAddrByNum(item1, 3);
 				prop = *pProp;
-				if (strcmp(propGetName(prop), "testName_40") != 0)
+				if (wcscmp(propGetName(prop), L"testName_40") != 0)
 				{
 					++errors_cnt;
 					printFailed("name 40");
@@ -992,64 +993,64 @@ void testItem()
 	{
 		++tests_cnt;
 		testNm = "itemIsEqual";
-		struct ItemStruct *item1 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
-		struct ItemStruct *item2 = itemInit("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", 4);
+		struct ItemStruct *item1 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		struct ItemStruct *item2 = itemInit(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check empty");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(5, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		item2 = itemInitFromRawData(5, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check size");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "badhashbadhashbadhashbadhashbadhashbadha", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		item2 = itemInitFromRawData(4, L"badhashbadhashbadhashbadhashbadhashbadha", L"testfile1", NULL, L"testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check hash");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=@testName_20=testVal_20,testVal_21@testName_30=");
+		item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=@testName_20=testVal_20,testVal_21@testName_30=");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check 10");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
+		item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_11@testName_20=testVal_20,testVal_21@testName_30=");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check 11");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20@testName_30=");
+		item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_10,testVal_11@testName_20=testVal_20@testName_30=");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check 20");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21");
+		item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_10,testVal_11@testName_20=testVal_20,testVal_21");
 		if (itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check 30");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_20=testVal_20,testVal_21@testName_30=@testName_10=testVal_10,testVal_11");
+		item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_20=testVal_20,testVal_21@testName_30=@testName_10=testVal_10,testVal_11");
 		if (!itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
 			printFailed("check full");
 		}
 		itemFree(item2);
-		item2 = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile2", NULL, "testName_20=testVal_20,testVal_21@testName_30=@testName_10=testVal_10,testVal_11");
+		item2 = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile2", NULL, L"testName_20=testVal_20,testVal_21@testName_30=@testName_10=testVal_10,testVal_11");
 		if (!itemIsEqual(item1, item2))
 		{
 			++errors_cnt;
@@ -1061,7 +1062,7 @@ void testItem()
 
 	++tests_cnt;
 	testNm = "itemDelPropertiesRaw";
-	if (itemDelPropertiesRaw(item, "testName_1=testVal_9@testName_10=testVal_11@testName_20@testName_30@testName_40@testName_50=testVal_51,testVal_52@testName_60@testName_80@testName_90") != EXIT_SUCCESS)
+	if (itemDelPropertiesRaw(item, L"testName_1=testVal_9@testName_10=testVal_11@testName_20@testName_30@testName_40@testName_50=testVal_51,testVal_52@testName_60@testName_80@testName_90") != EXIT_SUCCESS)
 	{
 		++errors_cnt;
 		printFailed("");
@@ -1077,7 +1078,7 @@ void testItem()
 		{
 			struct PropertyStruct **pProp = itemGetPropArrayAddrByNum(item, 0);
 			struct PropertyStruct *prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_1") != 0)
+			if (wcscmp(propGetName(prop), L"testName_1") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 1");
@@ -1089,7 +1090,7 @@ void testItem()
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 1);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_10") != 0)
+			if (wcscmp(propGetName(prop), L"testName_10") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 10");
@@ -1102,7 +1103,7 @@ void testItem()
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 2);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_50") != 0)
+			if (wcscmp(propGetName(prop), L"testName_50") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 50");
@@ -1112,14 +1113,14 @@ void testItem()
 				++errors_cnt;
 				printFailed("valCount 50");
 			}
-			else if (strlen(propGetSubval(prop, 0, None)) != 0)
+			else if (wcslen(propGetSubval(prop, 0, None)) != 0)
 			{
 				++errors_cnt;
 				printFailed("subval 50");
 			}
 			pProp = itemGetPropArrayAddrByNum(item, 3);
 			prop = *pProp;
-			if (strcmp(propGetName(prop), "testName_70") != 0)
+			if (wcscmp(propGetName(prop), L"testName_70") != 0)
 			{
 				++errors_cnt;
 				printFailed("name 70");
@@ -1129,7 +1130,7 @@ void testItem()
 				++errors_cnt;
 				printFailed("valCount 70");
 			}
-			else if (strlen(propGetSubval(prop, 0, None)) != 0)
+			else if (wcslen(propGetSubval(prop, 0, None)) != 0)
 			{
 				++errors_cnt;
 				printFailed("subval 70");
@@ -1140,7 +1141,7 @@ void testItem()
 	{
 		++tests_cnt;
 		testNm = "itemPropertyValueToString";
-		char *buff = malloc(4096);
+		wchar_t *buff = malloc(4096);
 		if (buff == NULL)
 		{
 			++errors_cnt;
@@ -1153,7 +1154,7 @@ void testItem()
 				++errors_cnt;
 				printFailed("get 1");
 			}
-			else if (strcmp(buff, "testVal_1,testVal_2,testVal_3") != 0)
+			else if (wcscmp(buff, L"testVal_1,testVal_2,testVal_3") != 0)
 			{
 				++errors_cnt;
 				printFailed("str 1");
@@ -1163,7 +1164,7 @@ void testItem()
 				++errors_cnt;
 				printFailed("get 10");
 			}
-			else if (strcmp(buff, "testVal_10") != 0)
+			else if (wcscmp(buff, L"testVal_10") != 0)
 			{
 				++errors_cnt;
 				printFailed("str 10");
@@ -1173,7 +1174,7 @@ void testItem()
 				++errors_cnt;
 				printFailed("get 70");
 			}
-			else if (strlen(buff) != 0)
+			else if (wcslen(buff) != 0)
 			{
 				++errors_cnt;
 				printFailed("str 70");
@@ -1191,28 +1192,28 @@ void testWhere()
 		++tests_cnt;
 		testNm = "whereTest0";
 		struct WhereStruct *whr;
-		whr = whereInit("@");
+		whr = whereInit(L"@");
 		if (whr != NULL)
 		{
 			whereFree(whr);
 			++errors_cnt;
 			printFailed("@");
 		}
-		whr = whereInit("=");
+		whr = whereInit(L"=");
 		if (whr != NULL)
 		{
 			whereFree(whr);
 			++errors_cnt;
 			printFailed("=");
 		}
-		whr = whereInit("prop10=@");
+		whr = whereInit(L"prop10=@");
 		if (whr != NULL)
 		{
 			whereFree(whr);
 			++errors_cnt;
 			printFailed("prop10=@");
 		}
-		whr = whereInit("@prop10=");
+		whr = whereInit(L"@prop10=");
 		if (whr != NULL)
 		{
 			whereFree(whr);
@@ -1222,7 +1223,7 @@ void testWhere()
 	}
 	++tests_cnt;
 	testNm = "whereTest1";
-	struct ItemStruct *item = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "prop10=value11,value12,value13@prop20=value21,value22,value23@prop30=value31,value32,value33@prop40=");
+	struct ItemStruct *item = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"prop10=value11,value12,value13@prop20=value21,value22,value23@prop30=value31,value32,value33@prop40=");
 	if (item == NULL)
 	{
 		++errors_cnt;
@@ -1230,7 +1231,7 @@ void testWhere()
 		return;
 	}
 	{
-		struct WhereStruct *whr = whereInit("prop10=value11");
+		struct WhereStruct *whr = whereInit(L"prop10=value11");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1254,7 +1255,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest2";
-		struct WhereStruct *whr = whereInit("prop10");
+		struct WhereStruct *whr = whereInit(L"prop10");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1278,7 +1279,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest3";
-		struct WhereStruct *whr = whereInit("prop10=value13");
+		struct WhereStruct *whr = whereInit(L"prop10=value13");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1297,7 +1298,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest4";
-		struct WhereStruct *whr = whereInit("prop10=value11,value13");
+		struct WhereStruct *whr = whereInit(L"prop10=value11,value13");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1316,7 +1317,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest5";
-		struct WhereStruct *whr = whereInit("prop10=value19,value11");
+		struct WhereStruct *whr = whereInit(L"prop10=value19,value11");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1335,7 +1336,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest6";
-		struct WhereStruct *whr = whereInit("prop10=value11@prop10=value12");
+		struct WhereStruct *whr = whereInit(L"prop10=value11@prop10=value12");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1354,7 +1355,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest7";
-		struct WhereStruct *whr = whereInit("prop10=value19");
+		struct WhereStruct *whr = whereInit(L"prop10=value19");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1373,7 +1374,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest8";
-		struct WhereStruct *whr = whereInit("prop10=value11@prop10=value19");
+		struct WhereStruct *whr = whereInit(L"prop10=value11@prop10=value19");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1392,7 +1393,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest9";
-		struct WhereStruct *whr = whereInit("prop10=value11@prop20=value22@prop30=value33");
+		struct WhereStruct *whr = whereInit(L"prop10=value11@prop20=value22@prop30=value33");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1416,7 +1417,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest10";
-		struct WhereStruct *whr = whereInit("prop10=value11,value12@prop20=value22,value23@prop30=value33,value39");
+		struct WhereStruct *whr = whereInit(L"prop10=value11,value12@prop20=value22,value23@prop30=value33,value39");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1435,7 +1436,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest11";
-		struct WhereStruct *whr = whereInit("prop10=value12@prop30=value39");
+		struct WhereStruct *whr = whereInit(L"prop10=value12@prop30=value39");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1454,7 +1455,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest12";
-		struct WhereStruct *whr = whereInit("prop10=");
+		struct WhereStruct *whr = whereInit(L"prop10=");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1473,7 +1474,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest13";
-		struct WhereStruct *whr = whereInit("prop90=");
+		struct WhereStruct *whr = whereInit(L"prop90=");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1492,7 +1493,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest14";
-		struct WhereStruct *whr = whereInit("prop90=@prop10=value11");
+		struct WhereStruct *whr = whereInit(L"prop90=@prop10=value11");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1511,7 +1512,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest15";
-		struct WhereStruct *whr = whereInit("prop40");
+		struct WhereStruct *whr = whereInit(L"prop40");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1530,7 +1531,7 @@ void testWhere()
 	{
 		++tests_cnt;
 		testNm = "whereTest16";
-		struct WhereStruct *whr = whereInit("prop40@prop40=");
+		struct WhereStruct *whr = whereInit(L"prop40@prop40=");
 		if (whr == NULL)
 		{
 			++errors_cnt;
@@ -1554,14 +1555,14 @@ void testFields()
 {
 	++tests_cnt;
 	testNm = "fieldsInit";
-	struct FieldListStruct *fields = fieldsInit("@FileName1,@testName_1");
+	struct FieldListStruct *fields = fieldsInit(L"@FileName1,@testName_1");
 	if (fields != NULL)
 	{
 		fieldsFree(fields);
 		++errors_cnt;
 		printFailed("init 1");
 	}
-	fields = fieldsInit("@FileName,@FileSize,@FileSize,testName_10,,,testName_20,");
+	fields = fieldsInit(L"@FileName,@FileSize,@FileSize,testName_10,,,testName_20,");
 	if (fields == NULL)
 	{
 		++errors_cnt;
@@ -1584,15 +1585,15 @@ void testFields()
 	{
 		++tests_cnt;
 		testNm = "fieldsPrintRow";
-		struct ItemStruct *item = itemInitFromRawData(4, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", "testfile1", NULL, "testName_10=testVal_10,,testVal_11,@testName_20=@testName_30=testVal_30");
+		struct ItemStruct *item = itemInitFromRawData(4, L"a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", L"testfile1", NULL, L"testName_10=testVal_10,,testVal_11,@testName_20=@testName_30=testVal_30");
 		FILE *fd1 = tmpfile();
-		if (fieldsPrintRow(fields, item, "", fd1) != EXIT_SUCCESS)
+		if (fieldsPrintRow(fields, item, L"", fd1) != EXIT_SUCCESS)
 		{
 			++errors_cnt;
 			printFailed("print 1");
 		}
-		itemSetPropertiesRaw(item, "testName_20=, testVal_20 ,");
-		if (fieldsPrintRow(fields, item, "", fd1) != EXIT_SUCCESS)
+		itemSetPropertiesRaw(item, L"testName_20=, testVal_20 ,");
+		if (fieldsPrintRow(fields, item, L"", fd1) != EXIT_SUCCESS)
 		{
 			++errors_cnt;
 			printFailed("print 2");
@@ -1658,7 +1659,7 @@ unsigned int propCommon(struct PropertyStruct *prop)
 		++err;
 		printFailed("userData != 0");
 	}
-	if (strcmp(propGetName(prop), "testName_123") != 0)
+	if (wcscmp(propGetName(prop), L"testName_123") != 0)
 	{
 		++err;
 		printFailed("propGetName");

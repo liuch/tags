@@ -26,22 +26,22 @@
 #include "utils.h"
 
 #define FIELDS_INCREASE   10
-#define FIELDS_SEPARATOR  ','
+#define FIELDS_SEPARATOR  L','
 
 struct FileNameCache
 {
-	const char    *fileName;
+	const wchar_t *fileName;
 	unsigned int  fileNum;
 };
 
-struct FieldStruct *fieldsFind(const struct FieldListStruct *fields, const char *name, unsigned int len);
+struct FieldStruct *fieldsFind(const struct FieldListStruct *fields, const wchar_t *name, unsigned int len);
 void fieldsResetCache(const struct FieldListStruct *fields);
-struct FieldStruct *fldInit(const char *name, unsigned int len);
+struct FieldStruct *fldInit(const wchar_t *name, unsigned int len);
 void fldFree(struct FieldStruct *fld);
-enum FieldType fldGetType(const char *name, unsigned int len);
-const char *fldGetValue(struct FieldStruct *fld, const struct ItemStruct *item, unsigned int fileNum);
+enum FieldType fldGetType(const wchar_t *name, unsigned int len);
+const wchar_t *fldGetValue(struct FieldStruct *fld, const struct ItemStruct *item, unsigned int fileNum);
 
-struct FieldListStruct *fieldsInit(const char *fieldsList)
+struct FieldListStruct *fieldsInit(const wchar_t *fieldsList)
 {
 	struct FieldListStruct *fields = malloc(sizeof(struct FieldListStruct));
 	if (fields == NULL)
@@ -65,8 +65,8 @@ struct FieldListStruct *fieldsInit(const char *fieldsList)
 	}
 	fields->colMax = FIELDS_INCREASE;
 
-	const char *pStart = fieldsList;
-	while (pStart != '\0')
+	const wchar_t *pStart = fieldsList;
+	while (pStart != L'\0')
 	{
 		if (fields->colCount == fields->colMax)
 		{
@@ -81,9 +81,9 @@ struct FieldListStruct *fieldsInit(const char *fieldsList)
 		}
 
 		unsigned int len;
-		const char *pEnd = strchr(pStart, FIELDS_SEPARATOR);
+		const wchar_t *pEnd = wcschr(pStart, FIELDS_SEPARATOR);
 		if (pEnd == NULL)
-			len = strlen(pStart);
+			len = wcslen(pStart);
 		else
 			len = pEnd - pStart;
 
@@ -141,7 +141,7 @@ void fieldsFree(struct FieldListStruct* fields)
 	free(fields);
 }
 
-int fieldsPrintRow(const struct FieldListStruct *fields, const struct ItemStruct *item, const char *baseDir, FILE *fd)
+int fieldsPrintRow(const struct FieldListStruct *fields, const struct ItemStruct *item, const wchar_t *baseDir, FILE *fd)
 {
 	fieldsResetCache(fields);
 	unsigned int fileNum = 0;
@@ -154,28 +154,28 @@ int fieldsPrintRow(const struct FieldListStruct *fields, const struct ItemStruct
 		{
 			if (i == cnt)
 			{
-				if (fputc('\n', fd) != EOF)
+				if (fputwc(L'\n', fd) != WEOF)
 					res = EXIT_SUCCESS;
 				break;
 			}
 
-			if (i != 0 && fputc('\t', fd) == EOF)
+			if (i != 0 && fputwc(L'\t', fd) == WEOF)
 				break;
 
 			struct FieldStruct *fld = fields->columns[i];
 			if (fld != NULL)
 			{
-				const char *pVal = fldGetValue(fld, item, fileNum);
+				const wchar_t *pVal = fldGetValue(fld, item, fileNum);
 				if (pVal == NULL)
 					return EXIT_FAILURE;
-				if (strlen(pVal) == 0)
-					pVal = "-";
-				if (fld->type == FileName && baseDir[0] != '\0' && fputs(baseDir, fd) == EOF)
+				if (wcslen(pVal) == 0)
+					pVal = L"-";
+				if (fld->type == FileName && baseDir[0] != L'\0' && fputws(baseDir, fd) == EOF)
 					break;
-				if (fputs(pVal, fd) == EOF)
+				if (fputws(pVal, fd) == EOF)
 					break;
 			}
-			else if (fputc('-', fd) == EOF)
+			else if (fputwc(L'-', fd) == WEOF)
 				break;
 		}
 		if (res != EXIT_SUCCESS)
@@ -190,7 +190,7 @@ int fieldsPrintRow(const struct FieldListStruct *fields, const struct ItemStruct
 
 // ************* Private ***************
 
-struct FieldStruct *fieldsFind(const struct FieldListStruct *fields, const char *name, unsigned int len)
+struct FieldStruct *fieldsFind(const struct FieldListStruct *fields, const wchar_t *name, unsigned int len)
 {
 	enum FieldType type = fldGetType(name, len);
 	if (type == Error)
@@ -205,8 +205,8 @@ struct FieldStruct *fieldsFind(const struct FieldListStruct *fields, const char 
 		{
 			if (type != Property)
 				return fld;
-			const char *pName = fld->name;
-			if (strncmp(pName, name, len) == 0 && pName[len] == '\0')
+			const wchar_t *pName = fld->name;
+			if (wcsncmp(pName, name, len) == 0 && pName[len] == L'\0')
 				return fld;
 		}
 	}
@@ -225,7 +225,7 @@ void fieldsResetCache(const struct FieldListStruct *fields)
 	}
 }
 
-struct FieldStruct *fldInit(const char* name, unsigned int len)
+struct FieldStruct *fldInit(const wchar_t* name, unsigned int len)
 {
 	enum FieldType type = fldGetType(name, len);
 	unsigned int nameSize;
@@ -248,21 +248,21 @@ struct FieldStruct *fldInit(const char* name, unsigned int len)
 			return NULL;
 	}
 
-	struct FieldStruct *fld = malloc(sizeof(struct FieldStruct) + (nameSize + chacheSize) * sizeof(char));
+	struct FieldStruct *fld = malloc(sizeof(struct FieldStruct) + (nameSize + chacheSize) * sizeof(wchar_t));
 	if (fld != NULL)
 	{
 		fld->type = type;
 		fld->cache.empty = 1;
 		fld->cache.size = chacheSize; // in characters
-		fld->cache.offset = sizeof(struct FieldStruct) + nameSize * sizeof(char);
-		char *pName = fld->name;
+		fld->cache.offset = sizeof(struct FieldStruct) + nameSize * sizeof(wchar_t);
+		wchar_t *pName = fld->name;
 		if (type == Property)
 		{
-			strncpy(pName, name, len);
-			pName[len] = '\0';
+			wcsncpy(pName, name, len);
+			pName[len] = L'\0';
 		}
 		else
-			pName[0] = '\0';
+			pName[0] = L'\0';
 	}
 	return fld;
 }
@@ -272,15 +272,15 @@ void fldFree(struct FieldStruct *fld)
 	free(fld);
 }
 
-enum FieldType fldGetType(const char *name, unsigned int len)
+enum FieldType fldGetType(const wchar_t *name, unsigned int len)
 {
-	if (name[0] == '@')
+	if (name[0] == L'@')
 	{
 		if (len == 9)
 		{
-			if (strncmp(name, "@FileName", len) == 0)
+			if (wcsncmp(name, L"@FileName", len) == 0)
 				return FileName;
-			if (strncmp(name, "@FileSize", len) == 0)
+			if (wcsncmp(name, L"@FileSize", len) == 0)
 				return FileSize;
 		}
 		return Error;
@@ -288,9 +288,9 @@ enum FieldType fldGetType(const char *name, unsigned int len)
 	return Property;
 }
 
-const char *fldGetValue(struct FieldStruct *fld, const struct ItemStruct *item, unsigned int fileNum)
+const wchar_t *fldGetValue(struct FieldStruct *fld, const struct ItemStruct *item, unsigned int fileNum)
 {
-	void *pVal = (void *)fld + fld->cache.offset;
+	wchar_t *pVal = (void *)fld + fld->cache.offset;
 	if (!fld->cache.empty)
 	{
 		if (fld->type != FileName)
@@ -304,7 +304,7 @@ const char *fldGetValue(struct FieldStruct *fld, const struct ItemStruct *item, 
 		struct PropertyStruct **pProp = itemGetPropertyPosByName(item, fld->name);
 		if (pProp == NULL)
 		{
-			*((char *)pVal) = '\0';
+			*pVal = L'\0';
 		}
 		else
 		{
@@ -316,17 +316,17 @@ const char *fldGetValue(struct FieldStruct *fld, const struct ItemStruct *item, 
 	{
 		if (item->fileNameCount > fileNum)
 		{
-			const char *nm = itemGetFileName(item, fileNum);
+			const wchar_t *nm = itemGetFileName(item, fileNum);
 			((struct FileNameCache *)pVal)->fileNum  = fileNum;
 			((struct FileNameCache *)pVal)->fileName = nm;
 			fld->cache.empty = 0;
 			return nm;
 		}
-		*((char *)pVal) = '\0';
+		*pVal = L'\0';
 	}
 	else if (fld->type == FileSize)
 	{
-		uitoa(item->fileSize, pVal);
+		uitow(item->fileSize, pVal);
 	}
 
 	fld->cache.empty = 0;

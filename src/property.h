@@ -21,6 +21,8 @@
 #ifndef PROPERTY_H
 #define PROPERTY_H
 
+#include <wchar.h>
+
 enum PropSubvalOrder
 {
 	None, ByValue, ByUser
@@ -48,17 +50,17 @@ struct SubvalHandle
 	unsigned int       userData;
 };
 
-struct PropertyStruct *propInit(const char *name, const char *value);
+struct PropertyStruct *propInit(const wchar_t *name, const wchar_t *value);
 void propFree(struct PropertyStruct *prop);
-const char *propGetName(const struct PropertyStruct *prop);
+const wchar_t *propGetName(const struct PropertyStruct *prop);
 int propIsEmpty(struct PropertyStruct *prop);
 int propIsEqualValue(struct PropertyStruct *prop1, struct PropertyStruct *prop2);
-const char *propGetSubval(struct PropertyStruct *prop, unsigned int num, enum PropSubvalOrder order);
+const wchar_t *propGetSubval(struct PropertyStruct *prop, unsigned int num, enum PropSubvalOrder order);
 struct SubvalHandle  **propGetValueIndex(struct PropertyStruct *prop, enum PropSubvalOrder order);
-int propAddSubvalues(struct PropertyStruct **pp, const char *value);
-struct SubvalHandle *propIsSubval(const struct PropertyStruct *prop, const char *subval);
-struct PropertyStruct *propAddSubval(struct PropertyStruct *prop, const char *value);
-int propDelSubvalues(struct PropertyStruct **pp, const char *value);
-const char *subvalString(const struct SubvalHandle *subval);
+int propAddSubvalues(struct PropertyStruct **pp, const wchar_t *value);
+struct SubvalHandle *propIsSubval(const struct PropertyStruct *prop, const wchar_t *subval);
+struct PropertyStruct *propAddSubval(struct PropertyStruct *prop, const wchar_t *value);
+int propDelSubvalues(struct PropertyStruct **pp, const wchar_t *value);
+const wchar_t *subvalString(const struct SubvalHandle *subval);
 
 #endif // PROPERTY_H

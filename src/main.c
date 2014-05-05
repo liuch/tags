@@ -23,13 +23,16 @@
 #include <string.h>
 #include <getopt.h>
 #include <limits.h>
+#include <locale.h>
+#include <wchar.h>
 
 #include "common.h"
 #include "tags.h"
+#include "utils.h"
 
 #define VERSION_STRING "0.0.1"
 
-enum WarnMode { WarnOptions, WarnFiles, WarnOther };
+enum WarnMode { WarnNone, WarnOptions, WarnFiles, WarnOther };
 
 enum {
 	MoveFileOption = CHAR_MAX + 1
@@ -55,9 +58,17 @@ struct option long_options[] = {
 void showHelp();
 void showVersion();
 void showWarning(enum WarnMode mode);
+void freeResources(void);
+
+wchar_t *addOptArg  = NULL;
+wchar_t *delOptArg  = NULL;
+wchar_t *setOptArg  = NULL;
+wchar_t *whrOptArg  = NULL;
+wchar_t *fieldsList = NULL;
 
 int main(int argc, char *argv[])
 {
+	setlocale(LC_ALL, "");
 	if (argc == 1)
 	{
 		showWarning(WarnOptions);
@@ -66,27 +77,22 @@ int main(int argc, char *argv[])
 
 	int res = EXIT_SUCCESS;
 	int opt, oi = -1;
-	char *addOptArg = NULL;
-	char *delOptArg = NULL;
-	char *setOptArg = NULL;
-	char *whrOptArg = NULL;
-	char *fieldsList = NULL;
 	flags = NoneFlag;
 	while (res == EXIT_SUCCESS && (opt = getopt_long(argc, argv, "a:cd:f:hilprs:vw:", long_options, &oi)) != -1)
 	{
 		switch (opt)
 		{
 			case 'a':
-				addOptArg = optarg;
+				addOptArg = makeWideCharString(optarg, 0);
 				break;
 			case 'c':
 				flags |= InitFlag;
 				break;
 			case 'd':
-				delOptArg = optarg;
+				delOptArg = makeWideCharString(optarg, 0);
 				break;
 			case 'f':
-				fieldsList = optarg;
+				fieldsList = makeWideCharString(optarg, 0);
 				break;
 			case 'h':
 				showHelp();
@@ -104,13 +110,13 @@ int main(int argc, char *argv[])
 				flags |= RecurFlag;
 				break;
 			case 's':
-				setOptArg = optarg;
+				setOptArg = makeWideCharString(optarg, 0);
 				break;
 			case 'v':
 				flags |= VersionFlag;
 				break;
 			case 'w':
-				whrOptArg = optarg;
+				whrOptArg = makeWideCharString(optarg, 0);
 				break;
 			case MoveFileOption:
 				flags |= MoveFileFlag;
@@ -124,6 +130,7 @@ int main(int argc, char *argv[])
 	if (res != EXIT_SUCCESS)
 		return res;
 
+	res = EXIT_FAILURE;
 	enum WarnMode warn = WarnOptions;
 	if (addOptArg == NULL && delOptArg == NULL && setOptArg == NULL)
 	{
@@ -131,14 +138,20 @@ int main(int argc, char *argv[])
 		if (flags == InitFlag) // -c option
 		{
 			if (filesCnt == 0 && whrOptArg == NULL && fieldsList == NULL)
-				return tagsCreateIndex();
+			{
+				res = tagsCreateIndex();
+				warn = WarnNone;
+			}
 		}
 		else if (flags == InfoFlag) // -i option
 		{
 			if (filesCnt > 0)
 			{
 				if (whrOptArg == NULL && fieldsList == NULL)
-					return tagsStatus(&argv[optind], filesCnt);
+				{
+					res = tagsStatus(&argv[optind], filesCnt);
+					warn = WarnNone;
+				}
 			}
 			else
 				warn = WarnFiles;
@@ -146,41 +159,55 @@ int main(int argc, char *argv[])
 		else if ((flags & ListFlag) != 0) // -l option
 		{
 			if ((flags & ~(ListFlag | RecurFlag)) == 0 && filesCnt == 0)
-				return tagsList(fieldsList, whrOptArg);
+			{
+				res = tagsList(fieldsList, whrOptArg);
+				warn = WarnNone;
+			}
 		}
 		else if ((flags & PropFlag) != 0) // -p option
 		{
 			if ((flags & ~(PropFlag | RecurFlag)) == 0 && filesCnt == 0 && whrOptArg == NULL && fieldsList == NULL)
-				return tagsShowProps();
+			{
+				res = tagsShowProps();
+				warn = WarnNone;
+			}
 		}
 		else if (flags == VersionFlag) // -v option
 		{
 			if (filesCnt == 0 && whrOptArg == NULL && fieldsList == NULL)
 			{
 				showVersion();
-				return EXIT_SUCCESS;
+				res = EXIT_SUCCESS;
+				warn = WarnNone;
 			}
 		}
 		else if (flags == MoveFileFlag) // --rename-file option
 		{
 			if (filesCnt == 2 && whrOptArg == NULL && fieldsList == NULL)
-				return moveFile(&argv[optind]);
+			{
+				res = moveFile(&argv[optind]);
+				warn = WarnNone;
+			}
 		}
 	}
 	else  // -a -d -s options
 	{
 		if (flags == NoneFlag)
 		{
+			warn = WarnFiles;
 			int filesCnt = argc - optind;
 			if (filesCnt > 0)
-				return tagsUpdateFileInfo(&argv[optind], filesCnt, addOptArg, delOptArg, setOptArg, whrOptArg);
-			else
-				warn = WarnFiles;
+			{
+				res = tagsUpdateFileInfo(&argv[optind], filesCnt, addOptArg, delOptArg, setOptArg, whrOptArg);
+				warn = WarnNone;
+			}
 		}
 	}
 
-	showWarning(warn);
-	return EXIT_FAILURE;
+	freeResources();
+	if (warn != WarnNone)
+		showWarning(warn);
+	return res;
 }
 
 void showHelp()
@@ -274,4 +301,18 @@ void showWarning(enum WarnMode mode)
 			;
 	}
 	fputs("Run `tags -h` for get help.\n", stderr);
+}
+
+void freeResources(void)
+{
+	if (addOptArg != NULL)
+		free(addOptArg);
+	if (delOptArg != NULL)
+		free(delOptArg);
+	if (setOptArg != NULL)
+		free(setOptArg);
+	if (whrOptArg != NULL)
+		free(whrOptArg);
+	if (fieldsList != NULL)
+		free(fieldsList);
 }

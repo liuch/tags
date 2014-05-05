@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <limits.h>
+#include <linux/limits.h>
 
 #include "tags.h"
 #include "tagfile.h"
@@ -104,9 +104,9 @@ int tagsStatus(char **filesArray, unsigned int filesCount)
 			{
 				const struct FileItem *fi = pFi[i];
 				if (fi->userData != 0)
-					fprintf(stdout, "[%2i] %s\n", fi->userData - 1, fi->path);
+					fprintf(stdout, "[%2i] %S\n", fi->userData - 1, fi->path);
 				else
-					fprintf(stdout, "[--] %s\n", fi->path);
+					fprintf(stdout, "[--] %S\n", fi->path);
 			}
 		}
 
@@ -116,24 +116,24 @@ int tagsStatus(char **filesArray, unsigned int filesCount)
 	return res;
 }
 
-int tagsList(const char *fieldsStr, const char *whrPropStr)
+int tagsList(const wchar_t *fieldsStr, const wchar_t *whrPropStr)
 {
 	struct FieldListStruct *fields = NULL;
 	if (fieldsStr == NULL)
 	{
-		fields = fieldsInit("@FileName");
+		fields = fieldsInit(L"@FileName");
 		if (fields == NULL)
 		{
-			fprintf(stderr, "fieldsInit error\n");
+			fputs("Error: fieldsInit failed\n", stderr);
 			return EXIT_FAILURE;
 		}
 	}
-	else if (strcmp(fieldsStr, "-") != 0)
+	else if (wcscmp(fieldsStr, L"-") != 0)
 	{
 		fields = fieldsInit(fieldsStr);
 		if (fields == NULL)
 		{
-			fprintf(stderr, "Error: incorrect list of fields\n");
+			fputs("Error: incorrect list of fields\n", stderr);
 			return EXIT_FAILURE;
 		}
 	}
@@ -168,7 +168,7 @@ int tagsList(const char *fieldsStr, const char *whrPropStr)
 
 int tagsShowProps(void)
 {
-	struct ItemStruct *item = itemInit("", 0);
+	struct ItemStruct *item = itemInit(0, L"");
 	if (item == NULL)
 	{
 		fputs("Error: itemInit failed\n", stderr);
@@ -190,17 +190,17 @@ int tagsShowProps(void)
 		for (i = 0; i < cnt; ++i)
 		{
 			struct PropertyStruct *prop = *itemGetPropArrayAddrByNum(item, i);
-			const char *propName = propGetName(prop);
-			fprintf(stdout, "%s\t%i\n", propName, prop->userData + 1);
+			const wchar_t *propName = propGetName(prop);
+			fprintf(stdout, "%S\t%i\n", propName, prop->userData + 1);
 			unsigned int subCount = prop->valCount;
 			struct SubvalHandle **ps = propGetValueIndex(prop, ByUser);
 			unsigned int k;
 			for (k = 0; k < subCount; ++k)
 			{
 				const struct SubvalHandle *subval = ps[k];
-				const char *str = subvalString(subval);
-				if (*str != '\0')
-					fprintf(stdout, "  %s=%s\t%i\n", propName, subvalString(subval), subval->userData + 1);
+				const wchar_t *str = subvalString(subval);
+				if (*str != L'\0')
+					fprintf(stdout, "  %S=%S\t%i\n", propName, subvalString(subval), subval->userData + 1);
 			}
 		}
 	}
@@ -209,7 +209,7 @@ int tagsShowProps(void)
 	return res;
 }
 
-int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char *delPropStr, char *setPropStr, const char *whrPropStr)
+int tagsUpdateFileInfo(char **filesArray, int filesCount, wchar_t *addPropStr, wchar_t *delPropStr, wchar_t *setPropStr, const wchar_t *whrPropStr)
 {
 	int dirLen = fileBaseNameOffset(filesArray, filesCount);
 	if (dirLen < 0)
@@ -234,7 +234,7 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 		whr = whereInit(whrPropStr);
 		if (whr == NULL)
 		{
-			fprintf(stderr, "Error: incorrect where conditions\n");
+			fputs("Error: incorrect where conditions\n", stderr);
 			tagfileFree(tf);
 			return EXIT_FAILURE;
 		}
@@ -252,7 +252,7 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 			struct FileItem **pFi = fil->fileItems;
 
 			short int removeMode = 0;
-			if (addPropStr == NULL && setPropStr == NULL && strcmp(delPropStr, "-") == 0)
+			if (addPropStr == NULL && setPropStr == NULL && wcscmp(delPropStr, L"-") == 0)
 				++removeMode;
 			unsigned int updatedCnt = 0;
 			unsigned int removedCnt = 0;
@@ -288,13 +288,13 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 											int tmpRes = EXIT_SUCCESS;
 											if (setPropStr != NULL)
 												if ((tmpRes = itemSetPropertiesRaw(item, setPropStr)) != EXIT_SUCCESS)
-													fprintf(stderr, "Error: itemSetPropertyRaw failed in %s\n", setPropStr);
+													fprintf(stderr, "Error: itemSetPropertyRaw failed in %S\n", setPropStr);
 											if (tmpRes == EXIT_SUCCESS && addPropStr != NULL)
 												if ((tmpRes = itemAddPropertiesRaw(item, addPropStr)) != EXIT_SUCCESS)
-													fprintf(stderr, "Error: itemAddPropertyRaw failed in %s\n", addPropStr);
+													fprintf(stderr, "Error: itemAddPropertyRaw failed in %S\n", addPropStr);
 											if (tmpRes == EXIT_SUCCESS && delPropStr != NULL)
 												if ((tmpRes = itemDelPropertiesRaw(item, delPropStr)) != EXIT_SUCCESS)
-													fprintf(stderr, "Error: itemDelPropertyRaw failed in %s\n", delPropStr);
+													fprintf(stderr, "Error: itemDelPropertyRaw failed in %S\n", delPropStr);
 											if (tmpRes != EXIT_SUCCESS)
 											{
 												itemFree(item);
@@ -364,7 +364,7 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 										fi = pFi[i];
 
 									if (i != 0 &&
-										(i == addCnt || fi->size != item->fileSize || strcmp(fi->hash, item->hash) != 0))
+										(i == addCnt || fi->size != item->fileSize || wcscmp(fi->hash, item->hash) != 0))
 									{
 										if (tagfileInsertItem(tf, item) != ErrorNone)
 										{
@@ -409,7 +409,7 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, char *addPropStr, char
 										}
 										if (!fnd)
 										{
-											item = itemInit(fi->hash, fi->size);
+											item = itemInit(fi->size, fi->hash);
 											if (item == NULL)
 											{
 												fputs("itemInit error\n", stderr);
@@ -499,6 +499,13 @@ int moveFile(char **filesArray)
 		newDir[newNameOffset] = '\0';
 		newName += newNameOffset;
 	}
+	wchar_t oldNameW[PATH_MAX];
+	wchar_t newNameW[PATH_MAX];
+	if (mbstowcs(oldNameW, oldName, PATH_MAX) == (size_t) -1 || mbstowcs(newNameW, newName, PATH_MAX) == (size_t) -1)
+	{
+		fputs("Error: filename is wrong\n", stderr);
+		return EXIT_FAILURE;
+	}
 
 	int cmpDirs = (oldNameOffset == newNameOffset) ? strcmp(oldDir, newDir) : 1;
 	int cmpNames = strcmp(oldName, newName);
@@ -530,12 +537,12 @@ int moveFile(char **filesArray)
 	}
 
 	enum ErrorId res = ErrorNone;
-	struct ItemStruct *itemTmp = tagfileGetItemByFileName(tfDst, newName);
+	struct ItemStruct *itemTmp = tagfileGetItemByFileName(tfDst, newNameW);
 	if (itemTmp == NULL)
 	{
 		if (tagfileReinit(tfDst, ReadWrite) == ErrorNone)
 		{
-			struct ItemStruct *itemSrc = tagfileGetItemByFileName(tfSrc, oldName);
+			struct ItemStruct *itemSrc = tagfileGetItemByFileName(tfSrc, oldNameW);
 			if (itemSrc != NULL)
 			{
 				struct ItemStruct *itemDst = NULL;
@@ -556,9 +563,9 @@ int moveFile(char **filesArray)
 							{
 								fputs("Error: such element is exists.", stderr);
 								if (itemDst->fileNameCount != 0)
-									fprintf(stderr, " File: %s\n", itemGetFileName(itemDst, 0));
+									fprintf(stderr, " File: %S\n", itemGetFileName(itemDst, 0));
 								else
-									fprintf(stderr, " File size: %zu, file hash: %s\n", itemDst->fileSize, itemDst->hash);
+									fprintf(stderr, " File size: %zu, file hash: %S\n", itemDst->fileSize, itemDst->hash);
 								itemFree(itemDst);
 								itemDst = NULL;
 								res = ErrorOther;
@@ -568,7 +575,7 @@ int moveFile(char **filesArray)
 				}
 				if (res == ErrorNone)
 				{
-					itemRemoveFileName(itemSrc, oldName);
+					itemRemoveFileName(itemSrc, oldNameW);
 					if (tfDst != tfSrc)
 					{
 						if (itemSrc->fileNameCount != 0)
@@ -580,7 +587,7 @@ int moveFile(char **filesArray)
 					{
 						if (tfDst != tfSrc && itemDst == itemSrc)
 							itemClearFileNames(itemDst);
-						if ((res = itemAddFileName(itemDst, newName)) == ErrorNone)
+						if ((res = itemAddFileName(itemDst, newNameW)) == ErrorNone)
 							res = tagfileInsertItem(tfDst, itemDst);
 					}
 					if (itemDst != itemSrc)

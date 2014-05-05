@@ -23,6 +23,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <wchar.h>
 
 #include "item.h"
 #include "property.h"
@@ -43,7 +44,7 @@ struct FieldStruct
 {
 	enum FieldType    type;
 	struct FieldCache cache;
-	char              name[];
+	wchar_t           name[];
 };
 
 struct FieldListStruct
@@ -57,8 +58,8 @@ struct FieldListStruct
 };
 
 
-struct FieldListStruct *fieldsInit(const char *fieldsList);
+struct FieldListStruct *fieldsInit(const wchar_t *fieldsList);
 void fieldsFree(struct FieldListStruct *fields);
-int fieldsPrintRow(const struct FieldListStruct *fields, const struct ItemStruct *item, const char *baseDir, FILE *fd);
+int fieldsPrintRow(const struct FieldListStruct *fields, const struct ItemStruct *item, const wchar_t *baseDir, FILE *fd);
 
 #endif // FIELDS_H

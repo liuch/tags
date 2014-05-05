@@ -22,6 +22,7 @@
 #define ITEM_H
 
 #include <stddef.h>
+#include <wchar.h>
 
 #include "property.h"
 #include "common.h"
@@ -29,33 +30,33 @@
 struct ItemStruct
 {
 	size_t                fileSize;
-	char                  hash[FILE_HASH_LEN + 1];
+	wchar_t               hash[FILE_HASH_LEN + 1];
 	unsigned int          fileNameMax;
 	unsigned int          fileNameCount;
-	char                  **fileNames;
+	wchar_t               **fileNames;
 	unsigned int          propsMax;
 	unsigned int          propsCount;
 	struct PropertyStruct **props;
 };
 
-struct ItemStruct *itemInit(const char fileCrc[], size_t fileSize);
-struct ItemStruct *itemInitFromRawData(size_t sz, const char *hash, const char *fName, const char *addPropStr, const char *setPropStr);
+struct ItemStruct *itemInit(size_t fileSize, const wchar_t *fileHash);
+struct ItemStruct *itemInitFromRawData(size_t fSize, const wchar_t *fHash, const wchar_t *fName, const wchar_t *addPropStr, const wchar_t *setPropStr);
 void itemFree(struct ItemStruct *item);
-int itemIsFileName(struct ItemStruct *item, const char *fileName);
-int itemAddFileName(struct ItemStruct *item, const char *fileName);
-void itemRemoveFileName(struct ItemStruct *item, const char *fileName);
-char *itemGetFileName(const struct ItemStruct *item, unsigned int pos);
+int itemIsFileName(struct ItemStruct *item, const wchar_t *fileName);
+int itemAddFileName(struct ItemStruct *item, const wchar_t *fileName);
+void itemRemoveFileName(struct ItemStruct *item, const wchar_t *fileName);
+wchar_t *itemGetFileName(const struct ItemStruct *item, unsigned int pos);
 void itemClearFileNames(struct ItemStruct *item);
 int itemIsEqual(const struct ItemStruct *item1, const struct ItemStruct *item2);
 int itemMerge(struct ItemStruct *itemTo, struct ItemStruct *itemFrom);
 
-int itemSetProperty(struct ItemStruct *item, const char *name, const char *value);
-int itemAddPropertiesRaw(struct ItemStruct *item, const char *rawVal);
-int itemSetPropertiesRaw(struct ItemStruct *item, const char *rawVal);
-int itemDelPropertiesRaw(struct ItemStruct *item, const char *rawVal);
-const char *itemPropertyGetName(const struct ItemStruct *item, unsigned int propNum);
-int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNum, char *strBuf, int bufLen);
+int itemSetProperty(struct ItemStruct *item, const wchar_t *name, const wchar_t *value);
+int itemAddPropertiesRaw(struct ItemStruct *item, const wchar_t *rawVal);
+int itemSetPropertiesRaw(struct ItemStruct *item, const wchar_t *rawVal);
+int itemDelPropertiesRaw(struct ItemStruct *item, const wchar_t *rawVal);
+const wchar_t *itemPropertyGetName(const struct ItemStruct *item, unsigned int propNum);
+int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNum, wchar_t *strBuf, int bufLen);
 struct PropertyStruct **itemGetPropArrayAddrByNum(const struct ItemStruct *item, unsigned int num);
-struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, const char *propName);
+struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, const wchar_t *propName);
 
 #endif // ITEM_H

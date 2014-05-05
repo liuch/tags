@@ -43,7 +43,7 @@ void fileitemsRemoveDuplicates(struct FileItemList *fil);
 
 const char *_pattern;
 
-enum ErrorId fileInfo(const char *fileName, size_t *size, char *hash, int sizeHash)
+enum ErrorId fileInfo(const char *fileName, size_t *size, wchar_t *hash, int sizeHash)
 {
 	struct stat64 fstat;
 	if (stat64(fileName, &fstat) == -1)
@@ -67,10 +67,13 @@ enum ErrorId fileInfo(const char *fileName, size_t *size, char *hash, int sizeHa
 		FILE *fd = fopen64(fileName, "r");
 		if (fd != NULL)
 		{
-			if (sizeHash > 40)
+			if (sizeHash > FILE_HASH_LEN)
 			{
-				if (sha1file(fd, hash) != EXIT_SUCCESS)
+				char sHash[FILE_HASH_LEN + 1];
+				if (sha1file(fd, sHash) != EXIT_SUCCESS)
 					res = ErrorOther;
+				mbstowcs(hash, sHash, FILE_HASH_LEN);
+				hash[FILE_HASH_LEN] = L'\0';
 			}
 			else
 				res = ErrorInternal;
@@ -92,7 +95,7 @@ void fileInfoError(const char *fileName, enum ErrorId err)
 			fprintf(stderr, "%s - file type error\n", fileName);
 			break;
 		case ErrorFileIsEmpty:
-			fprintf(stderr, "%s - file is empty\n", fileName);
+			fprintf(stderr, "Error: %s - file is empty\n", fileName);
 		case ErrorOther:
 			perror(fileName);
 		default:
@@ -150,6 +153,14 @@ int fileBaseNameOffset(char **filesArray, unsigned int filesCount)
 	return dirLen;
 }
 
+wchar_t *fileBaseNameOffsetW(wchar_t *path)
+{
+	wchar_t *ch = wcsrchr(path, L'/');
+	if (ch != NULL)
+		return ++ch;
+	return path;
+}
+
 struct FileItemList *fileitemsInitFromList(char **filesArray, unsigned int filesCount, unsigned int dirLen, enum FileItemMask mask)
 {
 	struct FileItemList *fil = malloc(sizeof(struct FileItemList));
@@ -186,12 +197,19 @@ struct FileItemList *fileitemsInitFromList(char **filesArray, unsigned int files
 						break;
 					}
 					fi->size = fsz;
-					strcpy(fi->path, filesArray[i]);
-					fi->name = &fi->path[dirLen];
-					fi->hash[0] = '\0';
+					size_t sz = mbstowcs(fi->path, filesArray[i], PATH_MAX);
+					if (sz == (size_t) -1 || sz == PATH_MAX)
+					{
+						free(fi);
+						fputs("Error: fileitemsInsertItem failed\n",stderr);
+						break;
+					}
+					fi->name = fileBaseNameOffsetW(fi->path);
+					fi->hash[0] = L'\0';
 					fi->userData = 0;
 					if (fileitemsInsertItem(fil, fi, mask) != EXIT_SUCCESS)
 					{
+						free(fi);
 						fputs("Error: fileitemsInsertItem failed\n",stderr);
 						break;
 					}
@@ -236,10 +254,12 @@ int fileitemsCalculateHashes(struct FileItemList *fil)
 		struct FileItem *fi = *list;
 		if (fi != NULL)
 		{
-			enum ErrorId res = fileInfo(fi->path, NULL, fi->hash, sizeof(fi->hash));
+			char sPath[PATH_MAX];
+			wcstombs(sPath, fi->name, PATH_MAX);
+			enum ErrorId res = fileInfo(sPath, NULL, fi->hash, sizeof(fi->hash));
 			if (res != ErrorNone)
 			{
-				fileInfoError(fi->path, res);
+				fileInfoError(sPath, res);
 				return EXIT_FAILURE;
 			}
 			--cnt;
@@ -320,9 +340,9 @@ int cmpsizehashfi(const void* fi1, const void* fi2)
 	int res = cmpsizefi(fi1, fi2);
 	if (res == 0)
 	{
-		const char *hash1 = (*(const struct FileItem **)fi1)->hash;
-		const char *hash2 = (*(const struct FileItem **)fi2)->hash;
-		res = strcmp(hash1, hash2);
+		const wchar_t *hash1 = (*(const struct FileItem **)fi1)->hash;
+		const wchar_t *hash2 = (*(const struct FileItem **)fi2)->hash;
+		res = wcscmp(hash1, hash2);
 	}
 	return res;
 }
@@ -332,9 +352,9 @@ int cmpfilepath(const void *fi1, const void *fi2)
 	int res = cmpsizefi(fi1, fi2);
 	if (res == 0)
 	{
-		const char *path1 = (*(const struct FileItem **)fi1)->path;
-		const char *path2 = (*(const struct FileItem **)fi2)->path;
-		res = strcmp(path1, path2);
+		const wchar_t *path1 = (*(const struct FileItem **)fi1)->path;
+		const wchar_t *path2 = (*(const struct FileItem **)fi2)->path;
+		res = wcscmp(path1, path2);
 	}
 	return res;
 }
@@ -488,7 +508,7 @@ void fileitemsRemoveDuplicates(struct FileItemList *fil)
 	for (i = 1; i < cnt; ++i)
 	{
 		struct FileItem *fi_2 = fil->fileItems[i];
-		if (strcmp(fi_1->path, fi_2->path) == 0)
+		if (wcscmp(fi_1->path, fi_2->path) == 0)
 			fileitemsRemoveItem(fil, fil->fileItems + i, MaskFile);
 		else
 			fi_1 = fi_2;

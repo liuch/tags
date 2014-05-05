@@ -22,6 +22,7 @@
 #define TAGFILE_H
 
 #include <stdio.h>
+#include <wchar.h>
 
 #include "file.h"
 #include "item.h"
@@ -34,16 +35,22 @@ enum TagFileMode {ReadOnly, ReadWrite};
 struct TagFileStruct
 {
 	FILE             *fd;
-	char             *dirPath;
-	unsigned int     dirLen;
-	char             *filePath;
-	char             *fileName;
+	wchar_t          *dirPath;
+	char             *dirPathChar;
+	size_t           dirLen;
+	wchar_t          *filePath;
+	char             *filePathChar;
+	wchar_t          *fileName;
 	enum TagFileMode mode;
 	enum ErrorId     lastError;
 	unsigned int     curLineNum;
-	char             *readBuffer;
+	struct
+	{
+		size_t       length;
+		wchar_t      *pointer;
+	} readBuffer;
 	size_t           curItemSize;
-	char             *curItemHash;
+	wchar_t          *curItemHash;
 	int              findFlag;
 	FILE             *fdModif;
 	FILE             *fdInsert;
@@ -53,13 +60,13 @@ int tagfileCreateIndex();
 struct TagFileStruct *tagfileInit(const char *dPath, const char *fName, enum TagFileMode mode);
 enum ErrorId tagfileReinit(struct TagFileStruct *tf, enum TagFileMode mode);
 void tagfileFree(struct TagFileStruct *tf);
-int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const char *hash);
+int tagfileFindNextItemPosition(struct TagFileStruct *tf, size_t sz, const wchar_t *hash);
 struct ItemStruct *tagfileItemLoad(struct TagFileStruct *tf);
 int tagfileList(struct TagFileStruct *tf, struct FieldListStruct *fields, const struct WhereStruct *whr);
 int tagfileShowProps(struct TagFileStruct *tf, struct ItemStruct *item);
 enum ErrorId tagfileSetAppendMode(struct TagFileStruct *tf);
 enum ErrorId tagfileInsertItem(struct TagFileStruct *tf, const struct ItemStruct *item);
 enum ErrorId tagfileApplyModifications(struct TagFileStruct *tf);
-struct ItemStruct *tagfileGetItemByFileName(struct TagFileStruct *tf, const char *fileName);
+struct ItemStruct *tagfileGetItemByFileName(struct TagFileStruct *tf, const wchar_t *fileName);
 
 #endif // TAGFILE_H

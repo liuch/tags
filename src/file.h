@@ -26,8 +26,12 @@
 #include <stdio.h>
 #include <sys/stat.h>
 #include <dirent.h>
+#include <wchar.h>
+#include <linux/limits.h>
 
 #include "errors.h"
+#include "common.h"
+
 
 enum PackStatus { PackedNo, PackedYes };
 
@@ -46,9 +50,9 @@ struct FileItemList
 struct FileItem
 {
 	size_t         size;
-	char           path[PATH_MAX];
-	char           *name;
-	char           hash[41];
+	wchar_t        path[PATH_MAX];
+	wchar_t        *name;
+	wchar_t        hash[FILE_HASH_LEN + 1];
 	unsigned int   userData;
 };
 
@@ -57,10 +61,11 @@ enum SortMethod { SortBySize, SortBySizeHash, SortByPath };
 
 typedef struct dirent64 ** DirEntry;
 
-enum ErrorId fileInfo(const char *fileName, size_t *size, char *hash, int sizeHash);
+enum ErrorId fileInfo(const char *fileName, size_t *size, wchar_t *hash, int sizeHash);
 void fileInfoError(const char *fileName, enum ErrorId err);
 int dirList(const char *path, const char *pattern, DirEntry *dir);
 int fileBaseNameOffset(char **filesArray, unsigned int filesCount);
+wchar_t *fileBaseNameOffsetW(wchar_t *path);
 int sha1file(FILE *fd, char[41]);
 
 struct FileItemList *fileitemsInitFromList(char **filesArray, unsigned int filesCount, unsigned int dirLen, enum FileItemMask mask);

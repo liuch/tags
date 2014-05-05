@@ -25,15 +25,15 @@
 
 #define NAMES_INCREASE    10
 #define PROPS_INCREASE    10
-#define PROPS_SEPARATOR  '@'
+#define PROPS_SEPARATOR   L'@'
 
 int itemSetProperty_(struct ItemStruct *item, struct PropertyStruct *prop);
 int itemInsertProperty(struct ItemStruct *item, struct PropertyStruct *prop);
-int itemAddFileName_(struct ItemStruct *item, char *allocName);
-char **itemGetFileNameArrayAddrByNum(const struct ItemStruct *item, unsigned int pos);
-char **itemGetFileNameArrayAddrByName(const struct ItemStruct *item, const char *fileName);
+int itemAddFileName_(struct ItemStruct *item, wchar_t *allocName);
+wchar_t **itemGetFileNameArrayAddrByNum(const struct ItemStruct *item, unsigned int pos);
+wchar_t **itemGetFileNameArrayAddrByName(const struct ItemStruct *item, const wchar_t *fileName);
 
-struct ItemStruct* itemInit(const char fileCrc[], size_t fileSize)
+struct ItemStruct* itemInit(size_t fileSize, const wchar_t *fileHash)
 {
 	struct ItemStruct *item = malloc(sizeof(struct ItemStruct));
 	if (item != NULL)
@@ -45,15 +45,15 @@ struct ItemStruct* itemInit(const char fileCrc[], size_t fileSize)
 		item->propsMax      = 0;
 		item->propsCount    = 0;
 		item->props         = NULL;
-		strncpy(item->hash, fileCrc, FILE_HASH_LEN);
-		item->hash[FILE_HASH_LEN] = '\0';
+		wcsncpy(item->hash, fileHash, FILE_HASH_LEN);
+		item->hash[FILE_HASH_LEN] = L'\0';
 	}
 	return item;
 }
 
-struct ItemStruct *itemInitFromRawData(size_t sz, const char *hash, const char *fName, const char *addPropStr, const char *setPropStr)
+struct ItemStruct *itemInitFromRawData(size_t fSize, const wchar_t *fHash, const wchar_t *fName, const wchar_t *addPropStr, const wchar_t *setPropStr)
 {
-	struct ItemStruct *item = itemInit(hash, sz);
+	struct ItemStruct *item = itemInit(fSize, fHash);
 	if (item != NULL)
 	{
 		int res;
@@ -97,22 +97,22 @@ void itemFree(struct ItemStruct *item)
 	free(item);
 }
 
-int itemIsFileName(struct ItemStruct *item, const char *fileName)
+int itemIsFileName(struct ItemStruct *item, const wchar_t *fileName)
 {
 	if (itemGetFileNameArrayAddrByName(item, fileName) != NULL)
 		return 1;
 	return 0;
 }
 
-int itemAddFileName(struct ItemStruct *item, const char *fileName)
+int itemAddFileName(struct ItemStruct *item, const wchar_t *fileName)
 {
 	if (itemIsFileName(item, fileName) != 0)
 		return EXIT_SUCCESS;
 
-	char *pName = malloc((strlen(fileName) + 1) * sizeof(char));
+	wchar_t *pName = malloc((wcslen(fileName) + 1) * sizeof(wchar_t));
 	if (pName == NULL)
 		return EXIT_FAILURE;
-	strcpy(pName, fileName);
+	wcscpy(pName, fileName);
 
 	if (itemAddFileName_(item, pName) == EXIT_SUCCESS)
 		return EXIT_SUCCESS;
@@ -121,9 +121,9 @@ int itemAddFileName(struct ItemStruct *item, const char *fileName)
 	return EXIT_FAILURE;
 }
 
-void itemRemoveFileName(struct ItemStruct *item, const char *fileName)
+void itemRemoveFileName(struct ItemStruct *item, const wchar_t *fileName)
 {
-	char **pName = itemGetFileNameArrayAddrByName(item, fileName);
+	wchar_t **pName = itemGetFileNameArrayAddrByName(item, fileName);
 	if (pName != NULL)
 	{
 		--item->fileNameCount;
@@ -138,9 +138,9 @@ void itemRemoveFileName(struct ItemStruct *item, const char *fileName)
 	}
 }
 
-char *itemGetFileName(const struct ItemStruct *item, unsigned int pos)
+wchar_t *itemGetFileName(const struct ItemStruct *item, unsigned int pos)
 {
-	char **pName = itemGetFileNameArrayAddrByNum(item, pos);
+	wchar_t **pName = itemGetFileNameArrayAddrByNum(item, pos);
 	if (pName == NULL)
 		return NULL;
 	return *pName;
@@ -151,10 +151,10 @@ void itemClearFileNames(struct ItemStruct *item)
 	if (item->fileNames != NULL)
 	{
 		unsigned int cnt = item->fileNameCount;
-		char **names = item->fileNames;
+		wchar_t **names  = item->fileNames;
 		for ( ; cnt != 0; ++names)
 		{
-			char *nm = *names;
+			wchar_t *nm = *names;
 			if (nm != NULL)
 			{
 				*names = NULL;
@@ -171,7 +171,7 @@ void itemClearFileNames(struct ItemStruct *item)
 
 int itemIsEqual(const struct ItemStruct *item1, const struct ItemStruct *item2)
 {
-	if (item1->fileSize != item2->fileSize || item1->propsCount != item2->propsCount || strcmp(item1->hash, item2->hash) != 0)
+	if (item1->fileSize != item2->fileSize || item1->propsCount != item2->propsCount || wcscmp(item1->hash, item2->hash) != 0)
 		return 0;
 
 	const unsigned int propCnt = item1->propsCount;
@@ -192,8 +192,8 @@ int itemMerge(struct ItemStruct *itemTo, struct ItemStruct *itemFrom)
 {
 	while (itemFrom->fileNameCount != 0)
 	{
-		char **pName = itemGetFileNameArrayAddrByNum(itemFrom, 0);
-		if (itemIsFileName(itemTo, *pName) == 0)
+		wchar_t **pName = itemGetFileNameArrayAddrByNum(itemFrom, 0);
+		if (!itemIsFileName(itemTo, *pName))
 		{
 			if (itemAddFileName_(itemTo, *pName) != EXIT_SUCCESS)
 				return EXIT_FAILURE;
@@ -219,7 +219,7 @@ int itemMerge(struct ItemStruct *itemTo, struct ItemStruct *itemFrom)
 			struct PropertyStruct *propF = *ppF;
 			struct PropertyStruct *propT = *ppT;
 			++propT->userData;
-			const char *subvalStr;
+			const wchar_t *subvalStr;
 			unsigned int i = 0;
 			while ((subvalStr = propGetSubval(propF, i++, None)) != NULL)
 			{
@@ -244,7 +244,7 @@ int itemMerge(struct ItemStruct *itemTo, struct ItemStruct *itemFrom)
 	return EXIT_SUCCESS;
 }
 
-int itemSetProperty(struct ItemStruct *item, const char *name, const char *value)
+int itemSetProperty(struct ItemStruct *item, const wchar_t *name, const wchar_t *value)
 {
 	struct PropertyStruct *newProp = propInit(name, value);
 	if (newProp == NULL)
@@ -257,33 +257,33 @@ int itemSetProperty(struct ItemStruct *item, const char *name, const char *value
 	return EXIT_FAILURE;
 }
 
-int itemAddPropertiesRaw(struct ItemStruct *item, const char *rawVal)
+int itemAddPropertiesRaw(struct ItemStruct *item, const wchar_t *rawVal)
 {
-	const char *startProp = rawVal;
+	const wchar_t *startProp = rawVal;
 	do
 	{
-		const char *endProp = strchr(startProp, PROPS_SEPARATOR);
-		const char *valPos = strchr(startProp, '=');
+		const wchar_t *endProp = wcschr(startProp, PROPS_SEPARATOR);
+		const wchar_t *valPos  = wcschr(startProp, L'=');
 		if (valPos == NULL || (endProp != NULL && valPos > endProp))
 			return EXIT_FAILURE;
 
-		char name[2048];
+		wchar_t name[2048];
 		unsigned int len = valPos - startProp;
-		if (len == 0 || len >=sizeof(name))
+		if (len == 0 || len >= sizeof(name) / sizeof(wchar_t))
 			return EXIT_FAILURE;
 
-		strncpy(name, startProp, len);
-		name[len] = '\0';
+		wcsncpy(name, startProp, len);
+		name[len] = L'\0';
 		++valPos;
-		char val[2048];
 		if (endProp != NULL)
 		{
+			wchar_t val[2048];
 			len = endProp - valPos;
-			if (len >= sizeof(val))
+			if (len >= sizeof(val) / sizeof(wchar_t))
 				return EXIT_FAILURE;
 			if (len > 0)
-				strncpy(val, valPos, len);
-			val[len] = '\0';
+				wcsncpy(val, valPos, len);
+			val[len] = L'\0';
 			valPos = val;
 		}
 
@@ -306,56 +306,56 @@ int itemAddPropertiesRaw(struct ItemStruct *item, const char *rawVal)
 		if (endProp == NULL)
 			return EXIT_SUCCESS;
 		startProp = endProp + 1;
-	} while (*startProp != '\0');
+	} while (*startProp != L'\0');
 
 	return EXIT_FAILURE;
 }
 
-int itemSetPropertiesRaw(struct ItemStruct *item, const char *rawVal)
+int itemSetPropertiesRaw(struct ItemStruct *item, const wchar_t *rawVal)
 {
-	const char *startProp = rawVal;
+	const wchar_t *startProp = rawVal;
 	do
 	{
-		char *endProp = strchr(startProp, PROPS_SEPARATOR);
-		char *valPos = strchr(startProp, '=');
+		wchar_t *endProp = wcschr(startProp, PROPS_SEPARATOR);
+		wchar_t *valPos  = wcschr(startProp, L'=');
 		if (valPos == NULL || (endProp != NULL && valPos > endProp))
 			return EXIT_FAILURE;
 
-		char name[2048];
+		wchar_t name[2048];
 		unsigned int len = valPos - startProp;
-		if (len == 0 || len >= sizeof(name))
+		if (len == 0 || len >= sizeof(name) / sizeof(wchar_t))
 			return EXIT_FAILURE;
 
-		strncpy(name, startProp, len);
-		name[len] = '\0';
+		wcsncpy(name, startProp, len);
+		name[len] = L'\0';
 		++valPos;
 		if (endProp == NULL)
 			return itemSetProperty(item, name, valPos);
 
-		char val[2048];
+		wchar_t val[2048];
 		len = endProp - valPos;
-		if (len >= sizeof(val))
+		if (len >= sizeof(val) / sizeof(wchar_t))
 			return EXIT_FAILURE;
 
 		if (len > 0)
-			strncpy(val, valPos, len);
-		val[len] = '\0';
+			wcsncpy(val, valPos, len);
+		val[len] = L'\0';
 		if (itemSetProperty(item, name, val) != EXIT_SUCCESS)
 			return EXIT_FAILURE;
 
 		startProp = endProp + 1;
-	} while (*startProp != '\0');
+	} while (*startProp != L'\0');
 
 	return EXIT_SUCCESS;
 }
 
-int itemDelPropertiesRaw(struct ItemStruct *item, const char *rawVal)
+int itemDelPropertiesRaw(struct ItemStruct *item, const wchar_t *rawVal)
 {
-	const char *startProp = rawVal;
+	const wchar_t *startProp = rawVal;
 	do
 	{
-		const char *endProp = strchr(startProp, PROPS_SEPARATOR);
-		const char *valPos = strchr(startProp, '=');
+		const wchar_t *endProp = wcschr(startProp, PROPS_SEPARATOR);
+		const wchar_t *valPos  = wcschr(startProp, L'=');
 		if (valPos == NULL || (endProp != NULL && valPos > endProp))
 		{
 			struct PropertyStruct **pp;
@@ -363,12 +363,12 @@ int itemDelPropertiesRaw(struct ItemStruct *item, const char *rawVal)
 				pp = itemGetPropertyPosByName(item, startProp);
 			else
 			{
-				char name[2048];
+				wchar_t name[2048];
 				unsigned int nameLen = endProp - startProp;
-				if (nameLen == 0 || nameLen >= sizeof(name))
+				if (nameLen == 0 || nameLen >= sizeof(name) / sizeof(wchar_t))
 					return EXIT_FAILURE;
-				strncpy(name, startProp, nameLen);
-				name[nameLen] = '\0';
+				wcsncpy(name, startProp, nameLen);
+				name[nameLen] = L'\0';
 				pp = itemGetPropertyPosByName(item, name);
 			}
 			if (pp != NULL)
@@ -381,13 +381,13 @@ int itemDelPropertiesRaw(struct ItemStruct *item, const char *rawVal)
 
 		else
 		{
-			char name[2048];
+			wchar_t name[2048];
 			unsigned int len = valPos - startProp;
-			if (len == 0 || len >= sizeof(name))
+			if (len == 0 || len >= sizeof(name) / sizeof(wchar_t))
 				return EXIT_FAILURE;
 
-			strncpy(name, startProp, len);
-			name[len] = '\0';
+			wcsncpy(name, startProp, len);
+			name[len] = L'\0';
 			struct PropertyStruct **pp = itemGetPropertyPosByName(item, name);
 			if (pp != NULL)
 			{
@@ -395,12 +395,12 @@ int itemDelPropertiesRaw(struct ItemStruct *item, const char *rawVal)
 				if (endProp == NULL)
 					return propDelSubvalues(pp, valPos);
 
-				char val[2048];
+				wchar_t val[2048];
 				len = endProp - valPos;
-				if (len == 0 || len >= sizeof(val))
+				if (len == 0 || len >= sizeof(val) / sizeof(wchar_t))
 					return EXIT_FAILURE;
-				strncpy(val, valPos, len);
-				val[len] = '\0';
+				wcsncpy(val, valPos, len);
+				val[len] = L'\0';
 				if (propDelSubvalues(pp, val) != EXIT_SUCCESS)
 					return EXIT_FAILURE;
 			}
@@ -408,12 +408,12 @@ int itemDelPropertiesRaw(struct ItemStruct *item, const char *rawVal)
 		if (endProp == NULL)
 			break;
 		startProp = endProp + 1;
-	} while (*startProp != '\0');
+	} while (*startProp != L'\0');
 
 	return EXIT_SUCCESS;
 }
 
-const char *itemPropertyGetName(const struct ItemStruct *item, unsigned int propNum)
+const wchar_t *itemPropertyGetName(const struct ItemStruct *item, unsigned int propNum)
 {
 	struct PropertyStruct **ptr = itemGetPropArrayAddrByNum(item, propNum);
 	if (ptr != NULL)
@@ -423,7 +423,7 @@ const char *itemPropertyGetName(const struct ItemStruct *item, unsigned int prop
 	return NULL;
 }
 
-int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNum, char *strBuf, int bufLen)
+int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNum, wchar_t *strBuf, int bufLen)
 {
 	struct PropertyStruct **ptr = itemGetPropArrayAddrByNum(item, propNum);
 	if (ptr == NULL)
@@ -432,7 +432,7 @@ int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNu
 	struct PropertyStruct *prop = *ptr;
 	unsigned int cnt = prop->valCount;
 	int buffRem = bufLen - 1;
-	char *buffPos = strBuf;
+	wchar_t *buffPos = strBuf;
 	unsigned int subvalNum = 0;
 	while (cnt != 0 && buffRem != 0)
 	{
@@ -441,13 +441,13 @@ int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNu
 			--buffPos;
 			if (buffRem <= 1)
 				break;
-			*buffPos++ = ',';
+			*buffPos++ = L',';
 			--buffRem;
 		}
-		const char *subvalPos = propGetSubval(prop, subvalNum++, ByValue);
+		const wchar_t *subvalPos = propGetSubval(prop, subvalNum++, ByValue);
 		if (subvalPos == NULL)
 			return EXIT_FAILURE;
-		char ch;
+		wchar_t ch;
 		do
 		{
 			ch = *subvalPos++;
@@ -455,10 +455,10 @@ int itemPropertyValueToString(const struct ItemStruct *item, unsigned int propNu
 			if (--buffRem == 0)
 				break;
 			++buffPos;
-		} while (ch != '\0');
+		} while (ch != L'\0');
 		--cnt;
 	}
-	*buffPos = '\0';
+	*buffPos = L'\0';
 	return EXIT_SUCCESS;
 }
 
@@ -480,9 +480,7 @@ struct PropertyStruct **itemGetPropArrayAddrByNum(const struct ItemStruct* item,
 	return NULL;
 }
 
-/**************************** Private ********************************/
-
-struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, const char *propName)
+struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, const wchar_t *propName)
 {
 	unsigned int cnt = item->propsCount;
 	if (cnt > 0)
@@ -493,7 +491,7 @@ struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, 
 			const struct PropertyStruct *prop = *ptr;
 			if (prop != NULL)
 			{
-				if (strcmp(propName, propGetName(prop)) == 0)
+				if (wcscmp(propName, propGetName(prop)) == 0)
 					return ptr;
 				--cnt;
 			}
@@ -502,6 +500,8 @@ struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, 
 	}
 	return NULL;
 }
+
+/**************************** Private ********************************/
 
 int itemSetProperty_(struct ItemStruct *item, struct PropertyStruct *prop)
 {
@@ -548,21 +548,21 @@ int itemInsertProperty(struct ItemStruct *item, struct PropertyStruct *prop)
 	return EXIT_SUCCESS;
 }
 
-int itemAddFileName_(struct ItemStruct *item, char *allocName)
+int itemAddFileName_(struct ItemStruct *item, wchar_t *allocName)
 {
 	unsigned int max = item->fileNameMax;
 	unsigned int cnt = item->fileNameCount;
 	if (max == cnt)
 	{
-		char **newPtr;
+		wchar_t **newPtr;
 		if (max == 0)
-			newPtr = malloc(sizeof(char *) * NAMES_INCREASE);
+			newPtr = malloc(sizeof(wchar_t *) * NAMES_INCREASE);
 		else
-			newPtr = realloc(item->fileNames, sizeof(char *) * (max + NAMES_INCREASE));
+			newPtr = realloc(item->fileNames, sizeof(wchar_t *) * (max + NAMES_INCREASE));
 		if (newPtr == NULL)
 			return EXIT_FAILURE;
 
-		bzero(&newPtr[max], sizeof(char *) * NAMES_INCREASE);
+		bzero(&newPtr[max], sizeof(wchar_t *) * NAMES_INCREASE);
 		item->fileNames      = newPtr;
 		item->fileNames[max] = allocName;
 		item->fileNameMax   += NAMES_INCREASE;
@@ -570,7 +570,7 @@ int itemAddFileName_(struct ItemStruct *item, char *allocName)
 		return EXIT_SUCCESS;
 	}
 
-	char **ptr = item->fileNames;
+	wchar_t **ptr = item->fileNames;
 	for ( ; ; ++ptr)
 		if (*ptr == NULL)
 			break;
@@ -580,11 +580,11 @@ int itemAddFileName_(struct ItemStruct *item, char *allocName)
 	return EXIT_SUCCESS;
 }
 
-char **itemGetFileNameArrayAddrByNum(const struct ItemStruct *item, unsigned int pos)
+wchar_t **itemGetFileNameArrayAddrByNum(const struct ItemStruct *item, unsigned int pos)
 {
 	if (pos < item->fileNameCount)
 	{
-		char **pName = item->fileNames;
+		wchar_t **pName = item->fileNames;
 		unsigned int i;
 		for (i = 0; ; ++pName)
 		{
@@ -596,14 +596,14 @@ char **itemGetFileNameArrayAddrByNum(const struct ItemStruct *item, unsigned int
 	return NULL;
 }
 
-char **itemGetFileNameArrayAddrByName(const struct ItemStruct *item, const char *fileName)
+wchar_t **itemGetFileNameArrayAddrByName(const struct ItemStruct *item, const wchar_t *fileName)
 {
-	char **pName = item->fileNames;
+	wchar_t **pName = item->fileNames;
 	unsigned int cnt = item->fileNameCount;
 	for ( ; cnt != 0; ++pName)
 		if (*pName != NULL)
 		{
-			if (strcmp(*pName, fileName) == 0)
+			if (wcscmp(*pName, fileName) == 0)
 				return pName;
 			--cnt;
 		}

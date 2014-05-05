@@ -24,13 +24,13 @@
 #include "where.h"
 
 #define CONDITION_INCREASE   10
-#define CONDITIONS_SEPARATOR '@'
+#define CONDITIONS_SEPARATOR L'@'
 
-int whereSetConditionsRaw(struct WhereStruct *whr, const char *whereStr);
-int whereSetConditions(struct WhereStruct *whr, const char *name, const char *value, unsigned int data);
+int whereSetConditionsRaw(struct WhereStruct *whr, const wchar_t *whereStr);
+int whereSetConditions(struct WhereStruct *whr, const wchar_t *name, const wchar_t *value, unsigned int data);
 int whereInsertConditions(struct WhereStruct *whr, struct PropertyStruct *prop);
 
-struct WhereStruct *whereInit(const char *whereStr)
+struct WhereStruct *whereInit(const wchar_t *whereStr)
 {
 	struct WhereStruct *whr = malloc(sizeof(struct WhereStruct));
 	if (whr != NULL)
@@ -60,8 +60,9 @@ void whereFree(struct WhereStruct *whr)
 
 int whereIsFiltered(const struct WhereStruct *whr, struct ItemStruct *item)
 {
-	unsigned int whrIdx;
-	for (whrIdx = 0; whrIdx < whr->condCount; ++whrIdx)
+	unsigned int whrIdx = 0;
+	unsigned int whrCnt = whr->condCount;
+	for ( ; whrIdx < whrCnt; ++whrIdx)
 	{
 		struct PropertyStruct *cond = whr->conditions[whrIdx];
 		struct PropertyStruct **pItemProp = itemGetPropertyPosByName(item, propGetName(cond));
@@ -97,24 +98,24 @@ int whereIsFiltered(const struct WhereStruct *whr, struct ItemStruct *item)
 
 // ********************* Private ***************************
 
-int whereSetConditionsRaw(struct WhereStruct *whr, const char *whereStr)
+int whereSetConditionsRaw(struct WhereStruct *whr, const wchar_t *whereStr)
 {
-	const char *curStrPos = whereStr;
+	const wchar_t *curStrPos = whereStr;
 	do
 	{
-		const char *startVal = strchr(curStrPos, '=');
-		const char *endVal = strchr(curStrPos, CONDITIONS_SEPARATOR);
+		const wchar_t *startVal = wcschr(curStrPos, L'=');
+		const wchar_t *endVal = wcschr(curStrPos, CONDITIONS_SEPARATOR);
 		if (endVal == NULL)
 		{
 			if (startVal != NULL)
 			{
 				unsigned int nameLen = startVal - curStrPos;
-				char name[2048];
-				if (nameLen == 0 || nameLen >= sizeof(name))
+				wchar_t name[2048];
+				if (nameLen == 0 || nameLen >= sizeof(name) / sizeof(wchar_t))
 					return EXIT_FAILURE;
 				++startVal;
-				strncpy(name, curStrPos, nameLen);
-				name[nameLen] = '\0';
+				wcsncpy(name, curStrPos, nameLen);
+				name[nameLen] = L'\0';
 				return whereSetConditions(whr, name, startVal, 0);
 			}
 			return whereSetConditions(whr, curStrPos, NULL, 1);
@@ -124,11 +125,11 @@ int whereSetConditionsRaw(struct WhereStruct *whr, const char *whereStr)
 			nameLen = startVal - curStrPos;
 		else
 			nameLen = endVal - curStrPos;
-		char name[2048];
-		if (nameLen == 0 || nameLen >= sizeof(name))
+		wchar_t name[2048];
+		if (nameLen == 0 || nameLen >= sizeof(name) / sizeof(wchar_t))
 			return EXIT_FAILURE;
-		strncpy(name, curStrPos, nameLen);
-		name[nameLen] = '\0';
+		wcsncpy(name, curStrPos, nameLen);
+		name[nameLen] = L'\0';
 		if (startVal == NULL || startVal > endVal)
 		{
 			if (whereSetConditions(whr, name, NULL, 1) != EXIT_SUCCESS)
@@ -137,24 +138,24 @@ int whereSetConditionsRaw(struct WhereStruct *whr, const char *whereStr)
 		else
 		{
 			++startVal;
-			char val[2048];
+			wchar_t val[2048];
 			unsigned int valLen = endVal - startVal;
-			if (valLen >= sizeof(val))
+			if (valLen >= sizeof(val) / sizeof(wchar_t))
 				return EXIT_FAILURE;
 			if (valLen != 0)
-				strncpy(val, startVal, valLen);
-			val[valLen] = '\0';
+				wcsncpy(val, startVal, valLen);
+			val[valLen] = L'\0';
 			if (whereSetConditions(whr, name, val, 0) != EXIT_SUCCESS)
 				return EXIT_FAILURE;
 		}
 		if (endVal == NULL)
 			return (whr->condCount == 0) ? EXIT_FAILURE : EXIT_SUCCESS;
 		curStrPos = endVal + 1;
-	} while (*curStrPos != '\0');
+	} while (*curStrPos != L'\0');
 	return EXIT_FAILURE;
 }
 
-int whereSetConditions(struct WhereStruct *whr, const char *name, const char *value, unsigned int data)
+int whereSetConditions(struct WhereStruct *whr, const wchar_t *name, const wchar_t *value, unsigned int data)
 {
 	struct PropertyStruct *prop = propInit(name, value);
 	if (prop == NULL)

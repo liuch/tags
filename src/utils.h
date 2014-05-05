@@ -21,6 +21,9 @@
 #ifndef UTIL_H
 #define UTIL_H
 
-void uitoa(unsigned long int n, char s[]);
+#include <wchar.h>
+
+void uitow(unsigned long int n, wchar_t *s);
+wchar_t *makeWideCharString(const char *s, size_t len);
 
 #endif // UTIL_H
