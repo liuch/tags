@@ -324,13 +324,16 @@ int tagsUpdateFileInfo(char **filesArray, int filesCount, wchar_t *addPropStr, w
 				{
 					if (tf->lastError != ErrorNone)
 						break;
-					size = tf->curItemSize;
+					size_t idx_sz = tf->curItemSize;
 					for (++fiStartIdx; fiStartIdx < fCount; ++fiStartIdx)
 					{
 						struct FileItem *fi = pFi[fiStartIdx];
 						if (fi != NULL)
-							if (fi->size >= size)
+							if (fi->size >= idx_sz)
+							{
+								size = fi->size;
 								break;
+							}
 					}
 					if (fiStartIdx == fCount)
 						break;
