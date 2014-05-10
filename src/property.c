@@ -363,7 +363,7 @@ int propDelSubvalues(struct PropertyStruct **pp, const wchar_t *value)
 			if (pSubval->subvalStatus == Used)
 			{
 				wchar_t *val = (void *)pSubval + sizeof(struct SubvalHandle);
-				if (wcscmp(val, pStart) == 0)
+				if (wcscasecmp(val, pStart) == 0)
 				{
 					if (prop->valCount != 1)
 					{
@@ -438,7 +438,7 @@ struct SubvalHandle *propIsSubval_(const struct PropertyStruct *prop, const wcha
 		if (pSubval->subvalStatus == Used)
 		{
 			const wchar_t *pVal = (void *)pSubval + sizeof(struct SubvalHandle);
-			if (wcsncmp(pVal, subval, len) == 0 && pVal[len] == L'\0')
+			if (wcsncasecmp(pVal, subval, len) == 0 && pVal[len] == L'\0')
 				return pSubval;
 			--cnt;
 		}

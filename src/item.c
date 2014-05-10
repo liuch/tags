@@ -491,7 +491,7 @@ struct PropertyStruct **itemGetPropertyPosByName(const struct ItemStruct *item, 
 			const struct PropertyStruct *prop = *ptr;
 			if (prop != NULL)
 			{
-				if (wcscmp(propName, propGetName(prop)) == 0)
+				if (wcscasecmp(propName, propGetName(prop)) == 0)
 					return ptr;
 				--cnt;
 			}

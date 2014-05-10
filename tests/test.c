@@ -145,14 +145,23 @@ void testProp()
 			++errors_cnt;
 			printFailed("Enum");
 		}
-
-		++tests_cnt;
-		testNm = "subvalString";
-		const wchar_t *str = subvalString(subvalEnum);
-		if (str == NULL || wcscmp(str, L"testVal_3") != 0)
+		subvalEnum = propIsSubval(propEnum, L"TESTvAL_3");
+		if (subvalEnum == NULL)
 		{
 			++errors_cnt;
-			printFailed("Enum");
+			printFailed("case-sensitive");
+		}
+
+		if (subvalEnum != NULL)
+		{
+			++tests_cnt;
+			testNm = "subvalString";
+			const wchar_t *str = subvalString(subvalEnum);
+			if (str == NULL || wcscmp(str, L"testVal_3") != 0)
+			{
+				++errors_cnt;
+				printFailed("Enum");
+			}
 		}
 	}
 
@@ -545,6 +554,23 @@ void testItem()
 				}
 			}
 		}
+	}
+
+	++tests_cnt;
+	testNm = "itemGetPropertyPosByName";
+	if (itemGetPropertyPosByName(item, L"testName_1") == NULL
+		|| itemGetPropertyPosByName(item, L"testName_10") == NULL || itemGetPropertyPosByName(item, L"testName_20") == NULL
+		|| itemGetPropertyPosByName(item, L"testName_30") == NULL || itemGetPropertyPosByName(item, L"testName_40") == NULL)
+	{
+		++errors_cnt;
+		printFailed("case-insensitive");
+	}
+	if (itemGetPropertyPosByName(item, L"TESTnAME_1") == NULL
+		|| itemGetPropertyPosByName(item, L"TESTnAME_10") == NULL || itemGetPropertyPosByName(item, L"TESTnAME_20") == NULL
+		|| itemGetPropertyPosByName(item, L"TESTnAME_30") == NULL || itemGetPropertyPosByName(item, L"TESTnAME_40") == NULL)
+	{
+		++errors_cnt;
+		printFailed("case-sensitive");
 	}
 
 	++tests_cnt;
