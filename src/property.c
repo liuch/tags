@@ -77,10 +77,13 @@ struct PropertyStruct *propInit(const wchar_t *name, const wchar_t *value)
 
 			if (pEnd == NULL)
 			{
-				struct PropertyStruct *newProp = propAddSubval(prop, pStart);
-				if (newProp == NULL)
-					propFree(prop);
-				prop = newProp;
+				if (propIsSubval(prop, pStart) == NULL)
+				{
+					struct PropertyStruct *newProp = propAddSubval(prop, pStart);
+					if (newProp == NULL)
+						propFree(prop);
+					prop = newProp;
+				}
 				break;
 			}
 

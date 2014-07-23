@@ -105,7 +105,21 @@ void testProp()
 			printFailed("valCount != 3");
 		}
 		if (err != 0)
+		{
+			propFree(propEnum);
 			++errors_cnt;
+			return;
+		}
+	}
+
+	{
+		struct PropertyStruct *propDup = propInit(L"testName_123", L"testVal_1,testVal_3,testVal_1,testVal_2,testVal_1");
+		if (propDup->valCount != 3)
+		{
+			++errors_cnt;
+			printFailed("valCount != 3. Duplicate?");
+		}
+		propFree(propDup);
 	}
 
 	if (propEnum == NULL)
