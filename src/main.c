@@ -292,10 +292,10 @@ void showWarning(enum WarnMode mode)
 	switch (mode)
 	{
 		case WarnOptions:
-			fputs("Invalid combination of options\n", stdout);
+			fputs("Invalid combination of options\n", stderr);
 			break;
 		case WarnFiles:
-			fputs("List of files is not specified\n", stdout);
+			fputs("List of files is not specified\n", stderr);
 			break;
 		default:
 			;
